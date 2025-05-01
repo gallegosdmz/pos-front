@@ -86,6 +86,7 @@ export default function CategoriesPage() {
   }
 
   const openEditDialog = (category: Category) => {
+    console.log(category);
     setCurrentCategory(category.id)
     setEditCategoryFormData({
       name: category.name

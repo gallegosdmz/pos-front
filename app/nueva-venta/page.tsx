@@ -48,7 +48,7 @@ export default function NewSalePage() {
     getProduct
   } = useSale()
 
-  const [barcodeInput, setBarcodeInput] = useState("")
+  const [barcodeInput, setBarcodeInput] = useState<number>(0)
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false)
   const [paymentMethod, setPaymentMethod] = useState<"cash" | "card" | "transfer">("cash")
   const [cashReceived, setCashReceived] = useState<number>(0)
@@ -89,15 +89,19 @@ export default function NewSalePage() {
     const product = await getProductByBarcode(barcodeInput)
     if (product) {
       addToCart(product)
-      setBarcodeInput("")
+      setBarcodeInput(0)
     }
   }
 
   const handleQRScan = async (detectedCodes: IDetectedBarcode[]) => {
     if (detectedCodes.length === 0) return;
+
+    console.log(detectedCodes)
   
-    const text = detectedCodes[0].rawValue;
-    const product = await getProductByBarcode(text);
+    const id = detectedCodes[0].rawValue;
+    const product = await getProductByBarcode(Number(id));
+
+    console.log(product);
   
     if (product) {
       addToCart(product);
@@ -178,7 +182,7 @@ export default function NewSalePage() {
                       placeholder="Escanear código o ingresar ID..."
                       className="pl-8"
                       value={barcodeInput}
-                      onChange={(e) => setBarcodeInput(e.target.value)}
+                      onChange={(e) => setBarcodeInput(Number(e.target.value))}
                     />
                   </div>
                   <Button type="submit">Agregar</Button>

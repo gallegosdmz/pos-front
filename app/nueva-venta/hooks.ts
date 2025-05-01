@@ -26,10 +26,10 @@ export const useSale = () => {
     }
   }, [toast])
 
-  const getProductByBarcode = useCallback(async (barcode: string) => {
+  const getProductByBarcode = useCallback(async (id: number) => {
     try {
       setIsLoading(true)
-      const product = SaleService.findProductByBarcode(products, barcode)
+      const product = SaleService.findProductById(products, id)
       if (!product) {
         toast({
           title: "Error",

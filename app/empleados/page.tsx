@@ -208,8 +208,8 @@ export default function EmployeesPage() {
                       <SelectValue placeholder="Seleccionar rol" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Cajero">Cajero</SelectItem>
-                      <SelectItem value="Admin">Administrador</SelectItem>
+                      <SelectItem value="cajero">Cajero</SelectItem>
+                      <SelectItem value="admin">Administrador</SelectItem>
                     </SelectContent>
                   </Select>
                   {newEmployeeErrors.role?.length > 0 && (
@@ -344,8 +344,8 @@ export default function EmployeesPage() {
                     <SelectValue placeholder="Seleccionar rol" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Cajero">Cajero</SelectItem>
-                    <SelectItem value="Admin">Administrador</SelectItem>
+                    <SelectItem value="cajero">Cajero</SelectItem>
+                    <SelectItem value="admin">Administrador</SelectItem>
                   </SelectContent>
                 </Select>
                 {editEmployeeErrors.role?.length > 0 && (

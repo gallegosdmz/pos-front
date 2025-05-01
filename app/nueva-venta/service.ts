@@ -28,8 +28,8 @@ export const SaleService = {
     return data
   },
 
-  findProductByBarcode(products: Product[], barcode: string): Product | null {
-    return products.find(product => product.barCode === barcode) || null
+  findProductById(products: Product[], id: number): Product | null {
+    return products.find(product => product.id === id) || null
   },
 
   async createSale(saleData: CreateSaleDto): Promise<SaleResponse> {
