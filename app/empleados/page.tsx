@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -18,96 +18,92 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Edit, Search, Trash2, UserPlus } from "lucide-react"
-import { employees, type Employee, formatShortDate, generateId } from "@/lib/data"
-import { useToast } from "@/components/ui/use-toast"
 import { motion } from "framer-motion"
+import { Employee } from "./types"
+import { useEmployees, useEmployeeForm } from "./hooks"
+
+const ROLES = {
+  Admin: 'Administrador',
+  Cajero: 'Cajero'
+} as const
 
 export default function EmployeesPage() {
-  const { toast } = useToast()
-  const [searchTerm, setSearchTerm] = useState("")
-  const [employeesList, setEmployeesList] = useState<Employee[]>(employees)
+  const {
+    employees,
+    isLoading,
+    searchTerm,
+    setSearchTerm,
+    loadEmployees,
+    createEmployee,
+    updateEmployee,
+    deleteEmployee
+  } = useEmployees()
+
+  const {
+    formData: newEmployee,
+    updateField: updateNewEmployee,
+    resetForm: resetNewEmployeeForm,
+    errors: newEmployeeErrors,
+    isValid: isNewEmployeeValid
+  } = useEmployeeForm()
+
+  const {
+    formData: editEmployee,
+    updateField: updateEditEmployee,
+    resetForm: resetEditForm,
+    errors: editEmployeeErrors,
+    isValid: isEditEmployeeValid
+  } = useEmployeeForm()
+
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
-  const [currentEmployee, setCurrentEmployee] = useState<Employee | null>(null)
-  const [newEmployee, setNewEmployee] = useState<Partial<Employee>>({
-    name: "",
-    position: "",
-    email: "",
-    phone: "",
-    startDate: new Date().toISOString().split("T")[0],
-    salary: 0,
-    status: "active",
-  })
+  const [currentEmployeeId, setCurrentEmployeeId] = useState<string | null>(null)
+  const [showPasswordFields, setShowPasswordFields] = useState(false)
 
-  const filteredEmployees = employeesList.filter(
-    (employee) =>
-      employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      employee.position.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      employee.email.toLowerCase().includes(searchTerm.toLowerCase()),
-  )
+  useEffect(() => {
+    loadEmployees()
+  }, [loadEmployees])
 
-  const handleAddEmployee = () => {
-    const employee: Employee = {
-      id: generateId("EMP"),
-      name: newEmployee.name || "",
-      position: newEmployee.position || "",
-      email: newEmployee.email || "",
-      phone: newEmployee.phone || "",
-      startDate: newEmployee.startDate || new Date().toISOString().split("T")[0],
-      salary: newEmployee.salary || 0,
-      status: (newEmployee.status as "active" | "inactive") || "active",
-      avatar: "/placeholder.svg?height=40&width=40",
+  const handleAddEmployee = async () => {
+    if (!isNewEmployeeValid()) return;
+    
+    try {
+      await createEmployee(newEmployee)
+      setIsAddDialogOpen(false)
+      resetNewEmployeeForm()
+    } catch {
+      // Error ya manejado por el hook
     }
-
-    setEmployeesList([...employeesList, employee])
-    setIsAddDialogOpen(false)
-    setNewEmployee({
-      name: "",
-      position: "",
-      email: "",
-      phone: "",
-      startDate: new Date().toISOString().split("T")[0],
-      salary: 0,
-      status: "active",
-    })
-
-    toast({
-      title: "Empleado agregado",
-      description: `${employee.name} ha sido agregado correctamente.`,
-    })
   }
 
-  const handleEditEmployee = () => {
-    if (!currentEmployee) return
+  const handleEditEmployee = async () => {
+    if (!isEditEmployeeValid()) return;
 
-    const updatedEmployees = employeesList.map((emp) => (emp.id === currentEmployee.id ? currentEmployee : emp))
-
-    setEmployeesList(updatedEmployees)
-    setIsEditDialogOpen(false)
-    setCurrentEmployee(null)
-
-    toast({
-      title: "Empleado actualizado",
-      description: `La información de ${currentEmployee.name} ha sido actualizada.`,
-    })
+    try {
+      await updateEmployee(currentEmployeeId!, editEmployee)
+      setIsEditDialogOpen(false)
+      setCurrentEmployeeId(null)
+      resetEditForm()
+      setShowPasswordFields(false)
+    } catch {
+      // Error ya manejado por el hook
+    }
   }
 
-  const handleDeleteEmployee = (id: string) => {
-    const employeeToDelete = employeesList.find((emp) => emp.id === id)
-    if (!employeeToDelete) return
-
-    const updatedEmployees = employeesList.filter((emp) => emp.id !== id)
-    setEmployeesList(updatedEmployees)
-
-    toast({
-      title: "Empleado eliminado",
-      description: `${employeeToDelete.name} ha sido eliminado correctamente.`,
-      variant: "destructive",
-    })
+  const handleDeleteEmployee = async (id: string) => {
+    try {
+      await deleteEmployee(id)
+    } catch {
+      // Error ya manejado por el hook
+    }
   }
 
   const openEditDialog = (employee: Employee) => {
-    setCurrentEmployee({ ...employee })
+    setCurrentEmployeeId(employee.id)
+    updateEditEmployee('name', employee.name)
+    updateEditEmployee('userName', employee.userName)
+    updateEditEmployee('role', employee.role)
+    setShowPasswordFields(false)
     setIsEditDialogOpen(true)
   }
 
@@ -151,94 +147,84 @@ export default function EmployeesPage() {
                 <Label htmlFor="name" className="text-right">
                   Nombre
                 </Label>
-                <Input
-                  id="name"
-                  className="col-span-3"
-                  value={newEmployee.name}
-                  onChange={(e) => setNewEmployee({ ...newEmployee, name: e.target.value })}
-                />
+                <div className="col-span-3 space-y-2">
+                  <Input
+                    id="name"
+                    className={newEmployeeErrors.name?.length ? "border-red-500" : ""}
+                    value={newEmployee.name}
+                    onChange={(e) => updateNewEmployee('name', e.target.value)}
+                    placeholder="Ingrese el nombre completo"
+                  />
+                  {newEmployeeErrors.name?.length > 0 && (
+                    <p className="text-sm text-red-500">{newEmployeeErrors.name.join(", ")}</p>
+                  )}
+                </div>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="position" className="text-right">
-                  Puesto
+                <Label htmlFor="userName" className="text-right">
+                  Usuario
                 </Label>
-                <Input
-                  id="position"
-                  className="col-span-3"
-                  value={newEmployee.position}
-                  onChange={(e) => setNewEmployee({ ...newEmployee, position: e.target.value })}
-                />
+                <div className="col-span-3 space-y-2">
+                  <Input
+                    id="userName"
+                    className={newEmployeeErrors.userName?.length ? "border-red-500" : ""}
+                    value={newEmployee.userName}
+                    onChange={(e) => updateNewEmployee('userName', e.target.value)}
+                    placeholder="Ingrese el nombre de usuario"
+                  />
+                  {newEmployeeErrors.userName?.length > 0 && (
+                    <p className="text-sm text-red-500">{newEmployeeErrors.userName.join(", ")}</p>
+                  )}
+                </div>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="email" className="text-right">
-                  Email
+                <Label htmlFor="password" className="text-right">
+                  Contraseña
                 </Label>
-                <Input
-                  id="email"
-                  type="email"
-                  className="col-span-3"
-                  value={newEmployee.email}
-                  onChange={(e) => setNewEmployee({ ...newEmployee, email: e.target.value })}
-                />
+                <div className="col-span-3 space-y-2">
+                  <Input
+                    id="password"
+                    type="password"
+                    className={newEmployeeErrors.password?.length ? "border-red-500" : ""}
+                    value={newEmployee.password}
+                    onChange={(e) => updateNewEmployee('password', e.target.value)}
+                    placeholder="Ingrese la contraseña"
+                  />
+                  {newEmployeeErrors.password?.length > 0 && (
+                    <p className="text-sm text-red-500">{newEmployeeErrors.password.join(", ")}</p>
+                  )}
+                </div>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="phone" className="text-right">
-                  Teléfono
+                <Label htmlFor="role" className="text-right">
+                  Rol
                 </Label>
-                <Input
-                  id="phone"
-                  className="col-span-3"
-                  value={newEmployee.phone}
-                  onChange={(e) => setNewEmployee({ ...newEmployee, phone: e.target.value })}
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="startDate" className="text-right">
-                  Fecha Inicio
-                </Label>
-                <Input
-                  id="startDate"
-                  type="date"
-                  className="col-span-3"
-                  value={newEmployee.startDate}
-                  onChange={(e) => setNewEmployee({ ...newEmployee, startDate: e.target.value })}
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="salary" className="text-right">
-                  Salario
-                </Label>
-                <Input
-                  id="salary"
-                  type="number"
-                  className="col-span-3"
-                  value={newEmployee.salary}
-                  onChange={(e) => setNewEmployee({ ...newEmployee, salary: Number(e.target.value) })}
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="status" className="text-right">
-                  Estado
-                </Label>
-                <Select
-                  value={newEmployee.status}
-                  onValueChange={(value) => setNewEmployee({ ...newEmployee, status: value as "active" | "inactive" })}
-                >
-                  <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Seleccionar estado" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="active">Activo</SelectItem>
-                    <SelectItem value="inactive">Inactivo</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="col-span-3">
+                  <Select
+                    value={newEmployee.role}
+                    onValueChange={(value) => updateNewEmployee('role', value)}
+                  >
+                    <SelectTrigger className={newEmployeeErrors.role?.length ? "border-red-500" : ""}>
+                      <SelectValue placeholder="Seleccionar rol" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Cajero">Cajero</SelectItem>
+                      <SelectItem value="Admin">Administrador</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {newEmployeeErrors.role?.length > 0 && (
+                    <p className="text-sm text-red-500 mt-2">{newEmployeeErrors.role.join(", ")}</p>
+                  )}
+                </div>
               </div>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
                 Cancelar
               </Button>
-              <Button onClick={handleAddEmployee}>Guardar</Button>
+              <Button onClick={handleAddEmployee} disabled={isLoading}>
+                {isLoading ? "Guardando..." : "Guardar"}
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -247,41 +233,35 @@ export default function EmployeesPage() {
       <Card>
         <CardHeader>
           <CardTitle>Lista de Empleados</CardTitle>
-          <CardDescription>Total de empleados: {employeesList.length}</CardDescription>
+          <CardDescription>Total de empleados: {employees.length}</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Nombre</TableHead>
-                <TableHead>Puesto</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Teléfono</TableHead>
-                <TableHead>Fecha Inicio</TableHead>
-                <TableHead>Salario</TableHead>
+                <TableHead>Usuario</TableHead>
+                <TableHead>Rol</TableHead>
                 <TableHead>Estado</TableHead>
                 <TableHead>Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredEmployees.length === 0 ? (
+              {employees.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center">
-                    No se encontraron empleados
+                  <TableCell colSpan={5} className="text-center">
+                    {isLoading ? "Cargando..." : "No se encontraron empleados"}
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredEmployees.map((employee) => (
+                employees.map((employee) => (
                   <TableRow key={employee.id}>
                     <TableCell className="font-medium">{employee.name}</TableCell>
-                    <TableCell>{employee.position}</TableCell>
-                    <TableCell>{employee.email}</TableCell>
-                    <TableCell>{employee.phone}</TableCell>
-                    <TableCell>{formatShortDate(employee.startDate)}</TableCell>
-                    <TableCell>${employee.salary.toLocaleString()}</TableCell>
+                    <TableCell>{employee.userName}</TableCell>
+                    <TableCell>{employee.role}</TableCell>
                     <TableCell>
-                      <Badge variant={employee.status === "active" ? "default" : "secondary"}>
-                        {employee.status === "active" ? "Activo" : "Inactivo"}
+                      <Badge variant={!employee.isDeleted ? "default" : "secondary"}>
+                        {!employee.isDeleted ? "Activo" : "Inactivo"}
                       </Badge>
                     </TableCell>
                     <TableCell>
@@ -290,7 +270,12 @@ export default function EmployeesPage() {
                           <Edit className="h-4 w-4" />
                           <span className="sr-only">Editar</span>
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleDeleteEmployee(employee.id)}>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => handleDeleteEmployee(employee.id)}
+                          disabled={isLoading}
+                        >
                           <Trash2 className="h-4 w-4" />
                           <span className="sr-only">Eliminar</span>
                         </Button>
@@ -311,103 +296,109 @@ export default function EmployeesPage() {
             <DialogTitle>Editar Empleado</DialogTitle>
             <DialogDescription>Actualiza la información del empleado.</DialogDescription>
           </DialogHeader>
-          {currentEmployee && (
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="edit-name" className="text-right">
-                  Nombre
-                </Label>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-name" className="text-right">
+                Nombre
+              </Label>
+              <div className="col-span-3 space-y-2">
                 <Input
                   id="edit-name"
-                  className="col-span-3"
-                  value={currentEmployee.name}
-                  onChange={(e) => setCurrentEmployee({ ...currentEmployee, name: e.target.value })}
+                  className={editEmployeeErrors.name?.length ? "border-red-500" : ""}
+                  value={editEmployee.name}
+                  onChange={(e) => updateEditEmployee('name', e.target.value)}
+                  placeholder="Ingrese el nombre completo"
                 />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="edit-position" className="text-right">
-                  Puesto
-                </Label>
-                <Input
-                  id="edit-position"
-                  className="col-span-3"
-                  value={currentEmployee.position}
-                  onChange={(e) => setCurrentEmployee({ ...currentEmployee, position: e.target.value })}
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="edit-email" className="text-right">
-                  Email
-                </Label>
-                <Input
-                  id="edit-email"
-                  type="email"
-                  className="col-span-3"
-                  value={currentEmployee.email}
-                  onChange={(e) => setCurrentEmployee({ ...currentEmployee, email: e.target.value })}
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="edit-phone" className="text-right">
-                  Teléfono
-                </Label>
-                <Input
-                  id="edit-phone"
-                  className="col-span-3"
-                  value={currentEmployee.phone}
-                  onChange={(e) => setCurrentEmployee({ ...currentEmployee, phone: e.target.value })}
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="edit-startDate" className="text-right">
-                  Fecha Inicio
-                </Label>
-                <Input
-                  id="edit-startDate"
-                  type="date"
-                  className="col-span-3"
-                  value={currentEmployee.startDate.split("T")[0]}
-                  onChange={(e) => setCurrentEmployee({ ...currentEmployee, startDate: e.target.value })}
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="edit-salary" className="text-right">
-                  Salario
-                </Label>
-                <Input
-                  id="edit-salary"
-                  type="number"
-                  className="col-span-3"
-                  value={currentEmployee.salary}
-                  onChange={(e) => setCurrentEmployee({ ...currentEmployee, salary: Number(e.target.value) })}
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="edit-status" className="text-right">
-                  Estado
-                </Label>
-                <Select
-                  value={currentEmployee.status}
-                  onValueChange={(value) =>
-                    setCurrentEmployee({ ...currentEmployee, status: value as "active" | "inactive" })
-                  }
-                >
-                  <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Seleccionar estado" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="active">Activo</SelectItem>
-                    <SelectItem value="inactive">Inactivo</SelectItem>
-                  </SelectContent>
-                </Select>
+                {editEmployeeErrors.name?.length > 0 && (
+                  <p className="text-sm text-red-500">{editEmployeeErrors.name.join(", ")}</p>
+                )}
               </div>
             </div>
-          )}
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-userName" className="text-right">
+                Usuario
+              </Label>
+              <div className="col-span-3 space-y-2">
+                <Input
+                  id="edit-userName"
+                  className={editEmployeeErrors.userName?.length ? "border-red-500" : ""}
+                  value={editEmployee.userName}
+                  onChange={(e) => updateEditEmployee('userName', e.target.value)}
+                  placeholder="Ingrese el nombre de usuario"
+                />
+                {editEmployeeErrors.userName?.length > 0 && (
+                  <p className="text-sm text-red-500">{editEmployeeErrors.userName.join(", ")}</p>
+                )}
+              </div>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-role" className="text-right">
+                Rol
+              </Label>
+              <div className="col-span-3">
+                <Select
+                  value={editEmployee.role}
+                  onValueChange={(value) => updateEditEmployee('role', value)}
+                >
+                  <SelectTrigger className={editEmployeeErrors.role?.length ? "border-red-500" : ""}>
+                    <SelectValue placeholder="Seleccionar rol" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Cajero">Cajero</SelectItem>
+                    <SelectItem value="Admin">Administrador</SelectItem>
+                  </SelectContent>
+                </Select>
+                {editEmployeeErrors.role?.length > 0 && (
+                  <p className="text-sm text-red-500 mt-2">{editEmployeeErrors.role.join(", ")}</p>
+                )}
+              </div>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label className="text-right">
+                Contraseña
+              </Label>
+              <div className="col-span-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowPasswordFields(!showPasswordFields)}
+                >
+                  {showPasswordFields ? "Cancelar cambio de contraseña" : "Cambiar contraseña"}
+                </Button>
+              </div>
+            </div>
+            {showPasswordFields && (
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-password" className="text-right">
+                  Nueva Contraseña
+                </Label>
+                <div className="col-span-3 space-y-2">
+                  <Input
+                    id="edit-password"
+                    type="password"
+                    className={editEmployeeErrors.password?.length ? "border-red-500" : ""}
+                    value={editEmployee.password}
+                    onChange={(e) => updateEditEmployee('password', e.target.value)}
+                    placeholder="Ingrese la nueva contraseña"
+                  />
+                  {editEmployeeErrors.password?.length > 0 && (
+                    <p className="text-sm text-red-500">{editEmployeeErrors.password.join(", ")}</p>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+            <Button variant="outline" onClick={() => {
+              setIsEditDialogOpen(false)
+              setShowPasswordFields(false)
+              resetEditForm()
+            }}>
               Cancelar
             </Button>
-            <Button onClick={handleEditEmployee}>Guardar Cambios</Button>
+            <Button onClick={handleEditEmployee} disabled={isLoading}>
+              {isLoading ? "Guardando..." : "Guardar Cambios"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

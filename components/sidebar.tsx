@@ -12,7 +12,7 @@ import { motion } from "framer-motion"
 const navItems = [
   {
     name: "Dashboard",
-    href: "/",
+    href: "/dashboard",
     icon: LayoutDashboard,
   },
   {

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -18,89 +18,134 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { CalendarIcon, Download, Plus, Search } from "lucide-react"
-import { expenses, formatCurrency, formatDate, generateId } from "@/lib/data"
+import { CalendarIcon, Download, Plus, Search, Edit, Trash2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import { useToast } from "@/components/ui/use-toast"
 import { motion } from "framer-motion"
+import { useExpenses, useExpenseForm } from "./hooks"
+import { Expense, ExpenseFormValues } from "./types"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+
+const formatCurrency = (amount: number) => {
+  return new Intl.NumberFormat('es-MX', {
+    style: 'currency',
+    currency: 'MXN'
+  }).format(amount)
+}
+
+const formatDate = (date: string) => {
+  try {
+    if (!date) return '-'
+    // Intentar parsear la fecha
+    const parsedDate = new Date(date)
+    // Verificar si la fecha es válida
+    if (isNaN(parsedDate.getTime())) return '-'
+    return format(parsedDate, "PP", { locale: es })
+  } catch (error) {
+    return '-'
+  }
+}
+
+const parseExpenseTotal = (total: string | number): number => {
+  if (typeof total === 'string') {
+    return parseFloat(total) || 0
+  }
+  return total
+}
 
 export default function ExpensesPage() {
   const { toast } = useToast()
-  const [searchTerm, setSearchTerm] = useState("")
-  const [categoryFilter, setCategoryFilter] = useState<string>("all")
-  const [paymentMethodFilter, setPaymentMethodFilter] = useState<string>("all")
-  const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined)
-  const [dateTo, setDateTo] = useState<Date | undefined>(undefined)
-  const [expensesList, setExpensesList] = useState(expenses)
+  const {
+    expenses,
+    isLoading,
+    searchTerm,
+    setSearchTerm,
+    createExpense,
+    updateExpense,
+    deleteExpense,
+    loadExpenses,
+  } = useExpenses()
+
+  const {
+    formData,
+    updateField,
+    resetForm,
+    isValid,
+    setFormData
+  } = useExpenseForm()
+
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
-  const [newExpense, setNewExpense] = useState({
-    description: "",
-    amount: 0,
-    category: "",
-    paymentMethod: "cash",
-    date: new Date().toISOString(),
-  })
+  const [isEditMode, setIsEditMode] = useState(false)
+  const [editingId, setEditingId] = useState<number | null>(null)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [deletingId, setDeletingId] = useState<number | null>(null)
 
-  const filteredExpenses = expensesList.filter((expense) => {
-    // Filtro de búsqueda
-    const searchMatch =
-      expense.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      expense.category.toLowerCase().includes(searchTerm.toLowerCase())
+  const handleAddOrUpdateExpense = async () => {
+    if (!isValid()) return
 
-    // Filtro de categoría
-    const categoryMatch = categoryFilter === "all" || expense.category === categoryFilter
-
-    // Filtro de método de pago
-    const paymentMatch = paymentMethodFilter === "all" || expense.paymentMethod === paymentMethodFilter
-
-    // Filtro de fecha
-    let dateMatch = true
-    if (dateFrom) {
-      const expenseDate = new Date(expense.date)
-      dateMatch = dateMatch && expenseDate >= dateFrom
+    try {
+      if (isEditMode && editingId !== null) {
+        await updateExpense(editingId, formData)
+      } else {
+        await createExpense(formData)
+      }
+      setIsAddDialogOpen(false)
+      resetForm()
+      setIsEditMode(false)
+      setEditingId(null)
+    } catch (error) {
+      console.error(error)
     }
-    if (dateTo) {
-      const expenseDate = new Date(expense.date)
-      const nextDay = new Date(dateTo)
-      nextDay.setDate(nextDay.getDate() + 1)
-      dateMatch = dateMatch && expenseDate < nextDay
-    }
-
-    return searchMatch && categoryMatch && paymentMatch && dateMatch
-  })
-
-  const totalAmount = filteredExpenses.reduce((sum, expense) => sum + expense.amount, 0)
-
-  // Obtener categorías únicas
-  const uniqueCategories = Array.from(new Set(expensesList.map((expense) => expense.category)))
-
-  const handleAddExpense = () => {
-    const expense = {
-      id: generateId("EXP"),
-      description: newExpense.description,
-      amount: newExpense.amount,
-      category: newExpense.category,
-      paymentMethod: newExpense.paymentMethod as "cash" | "card" | "transfer",
-      date: newExpense.date,
-    }
-
-    setExpensesList([...expensesList, expense])
-    setIsAddDialogOpen(false)
-    setNewExpense({
-      description: "",
-      amount: 0,
-      category: "",
-      paymentMethod: "cash",
-      date: new Date().toISOString(),
-    })
-
-    toast({
-      title: "Gasto registrado",
-      description: `Se ha registrado un nuevo gasto por ${formatCurrency(expense.amount)}.`,
-    })
   }
+
+  const handleEditClick = (expense: Expense) => {
+    setFormData({
+      concept: expense.concept,
+      total: parseExpenseTotal(expense.total)
+    })
+    setIsEditMode(true)
+    setEditingId(expense.id)
+    setIsAddDialogOpen(true)
+  }
+
+  const handleDeleteClick = (id: number) => {
+    setDeletingId(id)
+    setIsDeleteDialogOpen(true)
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (deletingId === null) return
+
+    try {
+      await deleteExpense(deletingId)
+      setIsDeleteDialogOpen(false)
+      setDeletingId(null)
+    } catch (error) {
+      console.error(error)
+    }
+  }
+
+  const handleDialogClose = () => {
+    setIsAddDialogOpen(false)
+    resetForm()
+    setIsEditMode(false)
+    setEditingId(null)
+  }
+
+  useEffect(() => {
+    loadExpenses()
+  }, [loadExpenses])
 
   return (
     <motion.div
@@ -125,226 +170,120 @@ export default function ExpensesPage() {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <div className="flex flex-col md:flex-row gap-4 w-full md:w-auto">
-          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger className="w-full md:w-[180px]">
-              <SelectValue placeholder="Categoría" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas las categorías</SelectItem>
-              {uniqueCategories.map((category) => (
-                <SelectItem key={category} value={category}>
-                  {category}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={paymentMethodFilter} onValueChange={setPaymentMethodFilter}>
-            <SelectTrigger className="w-full md:w-[180px]">
-              <SelectValue placeholder="Método de pago" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos los métodos</SelectItem>
-              <SelectItem value="cash">Efectivo</SelectItem>
-              <SelectItem value="card">Tarjeta</SelectItem>
-              <SelectItem value="transfer">Transferencia</SelectItem>
-            </SelectContent>
-          </Select>
-          <div className="flex gap-2">
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant={"outline"}
-                  className={cn(
-                    "w-full justify-start text-left font-normal md:w-[180px]",
-                    !dateFrom && "text-muted-foreground",
-                  )}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {dateFrom ? format(dateFrom, "PP", { locale: es }) : "Fecha desde"}
+        <div className="flex gap-2">
+          <Button variant="outline">
+            <Download className="mr-2 h-4 w-4" />
+            Exportar
+          </Button>
+          <Dialog open={isAddDialogOpen} onOpenChange={handleDialogClose}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="mr-2 h-4 w-4" />
+                Agregar Gasto
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>{isEditMode ? 'Editar Gasto' : 'Registrar Nuevo Gasto'}</DialogTitle>
+                <DialogDescription>
+                  {isEditMode ? 'Modifica la información del gasto.' : 'Ingresa la información del nuevo gasto.'}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="concept" className="text-right">
+                    Concepto
+                  </Label>
+                  <Input
+                    id="concept"
+                    className="col-span-3"
+                    value={formData.concept}
+                    onChange={(e) => updateField('concept', e.target.value)}
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="total" className="text-right">
+                    Total
+                  </Label>
+                  <Input
+                    id="total"
+                    type="number"
+                    className="col-span-3"
+                    value={formData.total}
+                    onChange={(e) => updateField('total', Number(e.target.value))}
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={handleDialogClose}>
+                  Cancelar
                 </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0">
-                <Calendar mode="single" selected={dateFrom} onSelect={setDateFrom} initialFocus />
-              </PopoverContent>
-            </Popover>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant={"outline"}
-                  className={cn(
-                    "w-full justify-start text-left font-normal md:w-[180px]",
-                    !dateTo && "text-muted-foreground",
-                  )}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {dateTo ? format(dateTo, "PP", { locale: es }) : "Fecha hasta"}
+                <Button onClick={handleAddOrUpdateExpense}>
+                  {isEditMode ? 'Guardar Cambios' : 'Guardar'}
                 </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0">
-                <Calendar mode="single" selected={dateTo} onSelect={setDateTo} initialFocus />
-              </PopoverContent>
-            </Popover>
-          </div>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle>Historial de Gastos</CardTitle>
-            <CardDescription>
-              Total: {filteredExpenses.length} gastos | Monto: {formatCurrency(totalAmount)}
-            </CardDescription>
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline">
-              <Download className="mr-2 h-4 w-4" />
-              Exportar
-            </Button>
-            <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-              <DialogTrigger asChild>
-                <Button>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Agregar Gasto
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Registrar Nuevo Gasto</DialogTitle>
-                  <DialogDescription>Ingresa la información del nuevo gasto.</DialogDescription>
-                </DialogHeader>
-                <div className="grid gap-4 py-4">
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="description" className="text-right">
-                      Descripción
-                    </Label>
-                    <Input
-                      id="description"
-                      className="col-span-3"
-                      value={newExpense.description}
-                      onChange={(e) => setNewExpense({ ...newExpense, description: e.target.value })}
-                    />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="amount" className="text-right">
-                      Monto
-                    </Label>
-                    <Input
-                      id="amount"
-                      type="number"
-                      className="col-span-3"
-                      value={newExpense.amount}
-                      onChange={(e) => setNewExpense({ ...newExpense, amount: Number(e.target.value) })}
-                    />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="category" className="text-right">
-                      Categoría
-                    </Label>
-                    <Input
-                      id="category"
-                      className="col-span-3"
-                      value={newExpense.category}
-                      onChange={(e) => setNewExpense({ ...newExpense, category: e.target.value })}
-                      list="categories"
-                    />
-                    <datalist id="categories">
-                      {uniqueCategories.map((category) => (
-                        <option key={category} value={category} />
-                      ))}
-                    </datalist>
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="paymentMethod" className="text-right">
-                      Método de Pago
-                    </Label>
-                    <Select
-                      value={newExpense.paymentMethod}
-                      onValueChange={(value) => setNewExpense({ ...newExpense, paymentMethod: value })}
-                    >
-                      <SelectTrigger className="col-span-3">
-                        <SelectValue placeholder="Seleccionar método" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="cash">Efectivo</SelectItem>
-                        <SelectItem value="card">Tarjeta</SelectItem>
-                        <SelectItem value="transfer">Transferencia</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="date" className="text-right">
-                      Fecha
-                    </Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant={"outline"}
-                          className={cn(
-                            "col-span-3 justify-start text-left font-normal",
-                            !newExpense.date && "text-muted-foreground",
-                          )}
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {newExpense.date
-                            ? format(new Date(newExpense.date), "PP", { locale: es })
-                            : "Seleccionar fecha"}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0">
-                        <Calendar
-                          mode="single"
-                          selected={newExpense.date ? new Date(newExpense.date) : undefined}
-                          onSelect={(date) => setNewExpense({ ...newExpense, date: date ? date.toISOString() : "" })}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
-                    Cancelar
-                  </Button>
-                  <Button onClick={handleAddExpense}>Guardar</Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          </div>
+        <CardHeader>
+          <CardTitle>Historial de Gastos</CardTitle>
+          <CardDescription>
+            Total: {expenses.length} gastos | Monto: {formatCurrency(
+              expenses.reduce((sum, expense) => sum + parseExpenseTotal(expense.total), 0)
+            )}
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Fecha</TableHead>
-                <TableHead>Descripción</TableHead>
-                <TableHead>Categoría</TableHead>
-                <TableHead>Método de Pago</TableHead>
-                <TableHead>Monto</TableHead>
+                <TableHead>Concepto</TableHead>
+                <TableHead>Total</TableHead>
+                <TableHead className="w-[100px]">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredExpenses.length === 0 ? (
+              {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center">
+                  <TableCell colSpan={3} className="text-center">
+                    Cargando gastos...
+                  </TableCell>
+                </TableRow>
+              ) : expenses.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={3} className="text-center">
                     No se encontraron gastos
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredExpenses.map((expense) => (
+                expenses.map((expense: Expense) => (
                   <TableRow key={expense.id}>
-                    <TableCell>{formatDate(expense.date)}</TableCell>
-                    <TableCell className="font-medium">{expense.description}</TableCell>
-                    <TableCell>{expense.category}</TableCell>
+                    <TableCell className="font-medium">{expense.concept}</TableCell>
+                    <TableCell>{formatCurrency(parseExpenseTotal(expense.total))}</TableCell>
                     <TableCell>
-                      {expense.paymentMethod === "cash"
-                        ? "Efectivo"
-                        : expense.paymentMethod === "card"
-                          ? "Tarjeta"
-                          : "Transferencia"}
+                      <div className="flex space-x-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleEditClick(expense)}
+                        >
+                          <Edit className="h-4 w-4" />
+                          <span className="sr-only">Editar</span>
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDeleteClick(expense.id)}
+                          disabled={isLoading}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          <span className="sr-only">Eliminar</span>
+                        </Button>
+                      </div>
                     </TableCell>
-                    <TableCell>{formatCurrency(expense.amount)}</TableCell>
                   </TableRow>
                 ))
               )}
@@ -352,6 +291,21 @@ export default function ExpensesPage() {
           </Table>
         </CardContent>
       </Card>
+
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. El gasto será eliminado permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteConfirm}>Eliminar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </motion.div>
   )
 }

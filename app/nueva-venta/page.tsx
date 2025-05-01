@@ -1,12 +1,11 @@
 "use client"
 
-import type React from "react"
-
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Separator } from "@/components/ui/separator"
 import {
   Dialog,
   DialogContent,
@@ -14,43 +13,59 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Barcode, Minus, Plus, Search, ShoppingCart, Trash2 } from "lucide-react"
-import { products, employees, type Product, type SaleItem, formatCurrency, generateId } from "@/lib/data"
 import { useToast } from "@/components/ui/use-toast"
 import { motion } from "framer-motion"
 import { IDetectedBarcode, Scanner } from "@yudiel/react-qr-scanner"
+import { useSale } from "./hooks"
+
+const formatCurrency = (amount: number) => {
+  return new Intl.NumberFormat('es-MX', {
+    style: 'currency',
+    currency: 'MXN'
+  }).format(amount)
+}
 
 export default function NewSalePage() {
   const { toast } = useToast()
-  const [searchTerm, setSearchTerm] = useState("")
-  const [cartItems, setCartItems] = useState<SaleItem[]>([])
+  const {
+    products,
+    cartItems,
+    isLoading,
+    searchTerm,
+    setSearchTerm,
+    loadProducts,
+    getProductByBarcode,
+    addToCart,
+    updateQuantity,
+    removeFromCart,
+    createSale,
+    getProduct
+  } = useSale()
+
   const [barcodeInput, setBarcodeInput] = useState("")
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false)
   const [paymentMethod, setPaymentMethod] = useState<"cash" | "card" | "transfer">("cash")
   const [cashReceived, setCashReceived] = useState<number>(0)
   const [customerName, setCustomerName] = useState("")
-  const [selectedEmployee, setSelectedEmployee] = useState(employees[0].id)
   const [isQRScannerOpen, setIsQRScannerOpen] = useState(false)
-  const [result, setResult] = useState<string | null>(null);
 
-  const filteredProducts = products.filter(
-    (product) =>
-      product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.barcode.includes(searchTerm),
-  )
-
-  const subtotal = cartItems.reduce((sum, item) => sum + item.subtotal, 0)
+  const subtotal = cartItems.reduce((sum, item) => {
+    const product = getProduct(item.product)
+    return sum + (product?.price || 0) * item.quantity
+  }, 0)
   const tax = subtotal * 0.16
   const total = subtotal + tax
   const change = cashReceived - total
+
+  useEffect(() => {
+    loadProducts()
+  }, [loadProducts])
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -67,89 +82,28 @@ export default function NewSalePage() {
     return () => window.removeEventListener("keydown", handleKeyDown)
   }, [cartItems])
 
-  const handleAddToCart = (product: Product) => {
-    // Verificar si el producto ya está en el carrito
-    const existingItemIndex = cartItems.findIndex((item) => item.productId === product.id)
-
-    if (existingItemIndex >= 0) {
-      // Si ya existe, incrementar la cantidad
-      const updatedItems = [...cartItems]
-      updatedItems[existingItemIndex].quantity += 1
-      updatedItems[existingItemIndex].subtotal =
-        updatedItems[existingItemIndex].quantity * updatedItems[existingItemIndex].price
-      setCartItems(updatedItems)
-    } else {
-      // Si no existe, agregar nuevo item
-      const newItem: SaleItem = {
-        productId: product.id,
-        quantity: 1,
-        price: product.price,
-        subtotal: product.price,
-      }
-      setCartItems([...cartItems, newItem])
-    }
-
-    toast({
-      title: "Producto agregado",
-      description: `${product.name} ha sido agregado al carrito.`,
-    })
-  }
-
-  const handleRemoveFromCart = (index: number) => {
-    const updatedItems = cartItems.filter((_, i) => i !== index)
-    setCartItems(updatedItems)
-  }
-
-  const handleUpdateQuantity = (index: number, newQuantity: number) => {
-    if (newQuantity < 1) return
-
-    const updatedItems = [...cartItems]
-    updatedItems[index].quantity = newQuantity
-    updatedItems[index].subtotal = newQuantity * updatedItems[index].price
-    setCartItems(updatedItems)
-  }
-
-  const handleBarcodeSubmit = (e: React.FormEvent) => {
+  const handleBarcodeSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!barcodeInput) return
 
-    const product = products.find((p) => p.barcode === barcodeInput || p.id === barcodeInput)
-
+    const product = await getProductByBarcode(barcodeInput)
     if (product) {
-      handleAddToCart(product)
+      addToCart(product)
       setBarcodeInput("")
-    } else {
-      toast({
-        title: "Producto no encontrado",
-        description: "No se encontró ningún producto con ese código.",
-        variant: "destructive",
-      })
     }
   }
 
-  const handleQRScan = (detectedCodes: IDetectedBarcode[]) => {
+  const handleQRScan = async (detectedCodes: IDetectedBarcode[]) => {
     if (detectedCodes.length === 0) return;
   
-    const text = detectedCodes[0].rawValue;  // Usamos 'rawValue' en lugar de 'code'
-  
-    const product = products.find((p) => p.id === text);
+    const text = detectedCodes[0].rawValue;
+    const product = await getProductByBarcode(text);
   
     if (product) {
-      handleAddToCart(product);
+      addToCart(product);
       setIsQRScannerOpen(false);
-      toast({
-        title: "Producto escaneado",
-        description: `${product.name} ha sido agregado al carrito.`,
-      });
-    } else {
-      toast({
-        title: "Producto no encontrado",
-        description: "No se encontró ningún producto con ese código QR.",
-        variant: "destructive",
-      });
     }
   };
-  
 
   const handleQRError = (error: any) => {
     console.error(error)
@@ -173,7 +127,7 @@ export default function NewSalePage() {
     setIsPaymentDialogOpen(true)
   }
 
-  const handleProcessPayment = () => {
+  const handleProcessPayment = async () => {
     if (paymentMethod === "cash" && cashReceived < total) {
       toast({
         title: "Monto insuficiente",
@@ -183,23 +137,14 @@ export default function NewSalePage() {
       return
     }
 
-    // Simular procesamiento de pago
-    const saleId = generateId("SALE")
-
-    toast({
-      title: "Venta completada",
-      description: `Venta #${saleId} procesada correctamente.`,
-    })
-
-    // Limpiar carrito y cerrar diálogo
-    setCartItems([])
-    setIsPaymentDialogOpen(false)
-    setCashReceived(0)
-    setCustomerName("")
-  }
-
-  const getProductById = (id: string) => {
-    return products.find((product) => product.id === id)
+    try {
+      await createSale()
+      setIsPaymentDialogOpen(false)
+      setCashReceived(0)
+      setCustomerName("")
+    } catch (error) {
+      // Error ya manejado por el hook
+    }
   }
 
   return (
@@ -267,22 +212,6 @@ export default function NewSalePage() {
                   </Button>
                 </form>
               </div>
-              <div>
-                <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
-                  <SelectTrigger className="w-full md:w-[200px]">
-                    <SelectValue placeholder="Seleccionar vendedor" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {employees
-                      .filter((emp) => emp.status === "active")
-                      .map((employee) => (
-                        <SelectItem key={employee.id} value={employee.id}>
-                          {employee.name}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
-              </div>
             </div>
 
             <div className="border rounded-md">
@@ -308,21 +237,21 @@ export default function NewSalePage() {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    cartItems.map((item, index) => {
-                      const product = getProductById(item.productId)
+                    cartItems.map((item) => {
+                      const product = getProduct(item.product)
                       return (
-                        <TableRow key={index}>
+                        <TableRow key={item.product}>
                           <TableCell className="font-medium">
                             {product ? product.name : "Producto desconocido"}
                           </TableCell>
-                          <TableCell>{formatCurrency(item.price)}</TableCell>
+                          <TableCell>{formatCurrency(item.unitPrice)}</TableCell>
                           <TableCell>
                             <div className="flex items-center space-x-2">
                               <Button
                                 variant="outline"
                                 size="icon"
                                 className="h-8 w-8"
-                                onClick={() => handleUpdateQuantity(index, item.quantity - 1)}
+                                onClick={() => updateQuantity(item.product, item.quantity - 1)}
                               >
                                 <Minus className="h-4 w-4" />
                               </Button>
@@ -331,15 +260,15 @@ export default function NewSalePage() {
                                 variant="outline"
                                 size="icon"
                                 className="h-8 w-8"
-                                onClick={() => handleUpdateQuantity(index, item.quantity + 1)}
+                                onClick={() => updateQuantity(item.product, item.quantity + 1)}
                               >
                                 <Plus className="h-4 w-4" />
                               </Button>
                             </div>
                           </TableCell>
-                          <TableCell>{formatCurrency(item.subtotal)}</TableCell>
+                          <TableCell>{formatCurrency(item.unitPrice * item.quantity)}</TableCell>
                           <TableCell>
-                            <Button variant="ghost" size="icon" onClick={() => handleRemoveFromCart(index)}>
+                            <Button variant="ghost" size="icon" onClick={() => removeFromCart(item.product)}>
                               <Trash2 className="h-4 w-4" />
                               <span className="sr-only">Eliminar</span>
                             </Button>
@@ -392,19 +321,14 @@ export default function NewSalePage() {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 gap-4 max-h-[600px] overflow-y-auto pr-2">
-              {filteredProducts.length === 0 ? (
+              {isLoading ? (
+                <div className="text-center py-8 text-muted-foreground">Cargando productos...</div>
+              ) : products.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">No se encontraron productos</div>
               ) : (
-                filteredProducts.map((product) => (
+                products.map((product) => (
                   <Card key={product.id} className="overflow-hidden">
                     <div className="flex">
-                      <div className="h-24 w-24 bg-muted flex items-center justify-center">
-                        <img
-                          src={product.image || "/placeholder.svg"}
-                          alt={product.name}
-                          className="h-full w-full object-cover"
-                        />
-                      </div>
                       <div className="flex-1 p-4">
                         <div className="flex justify-between">
                           <div>
@@ -422,7 +346,7 @@ export default function NewSalePage() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => handleAddToCart(product)}
+                            onClick={() => addToCart(product)}
                             disabled={product.stock < 1}
                           >
                             <Plus className="mr-1 h-4 w-4" />
@@ -562,6 +486,7 @@ export default function NewSalePage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
       {/* Diálogo del escáner de QR */}
       <Dialog open={isQRScannerOpen} onOpenChange={setIsQRScannerOpen}>
         <DialogContent className="sm:max-w-md">
@@ -571,20 +496,14 @@ export default function NewSalePage() {
           </DialogHeader>
           <div className="flex flex-col items-center justify-center py-4">
             <div className="w-full max-w-sm overflow-hidden rounded-lg">
-            <Scanner
-              onScan={handleQRScan}
-              onError={handleQRError}
-              scanDelay={500}
-              constraints={{
-                facingMode: "environment", // usa la cámara trasera
-              }}
-            />
-            {result && (
-              <div style={{ marginTop: "20px", textAlign: "center" }}>
-                <h3>QR Escaneado:</h3>
-                <p>{result}</p>
-              </div>
-            )}
+              <Scanner
+                onScan={handleQRScan}
+                onError={handleQRError}
+                scanDelay={500}
+                constraints={{
+                  facingMode: "environment",
+                }}
+              />
             </div>
           </div>
           <DialogFooter>

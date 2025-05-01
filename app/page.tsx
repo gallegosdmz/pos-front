@@ -1,190 +1,205 @@
 "use client"
 
 import { useState } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { BarChart, DollarSign, Package, ShoppingCart } from "lucide-react"
-import { employees, products, sales, expenses } from "@/lib/data"
-import { formatCurrency } from "@/lib/data"
+import { useRouter } from "next/navigation"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { useToast } from "@/components/ui/use-toast"
 import { motion } from "framer-motion"
 
-export default function Home() {
-  const [activeTab, setActiveTab] = useState("overview")
+export default function LoginPage() {
+  const router = useRouter()
+  const { toast } = useToast()
+  const [isLoading, setIsLoading] = useState(false)
+  const [isCreatingAdmin, setIsCreatingAdmin] = useState(false)
+  const [formData, setFormData] = useState({
+    userName: "",
+    password: "",
+  })
 
-  // Calcular estadísticas
-  const totalSales = sales.filter((sale) => sale.status === "completed").reduce((sum, sale) => sum + sale.total, 0)
+  const handleQuickAdminLogin = async () => {
+    setFormData({
+      userName: "admin",
+      password: "Admin123"
+    })
+    setIsLoading(true)
 
-  const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0)
+    try {
+      const response = await fetch("http://localhost:3000/api/users/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userName: "admin",
+          password: "Admin123"
+        }),
+      })
 
-  const totalProfit = totalSales - totalExpenses
+      if (!response.ok) {
+        throw new Error("Credenciales inválidas")
+      }
 
-  const lowStockProducts = products.filter((product) => product.stock < 10).length
+      const data = await response.json()
+      localStorage.setItem("token", data.token)
+      
+      toast({
+        title: "Inicio de sesión exitoso",
+        description: "Bienvenido administrador",
+      })
 
-  const activeEmployees = employees.filter((employee) => employee.status === "active").length
+      router.push("/dashboard")
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Ocurrió un error al iniciar sesión",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
-  // Datos para gráficos
-  const recentSales = sales
-    .filter((sale) => sale.status === "completed")
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-    .slice(0, 5)
+  const handleCreateFirstAdmin = async () => {
+    setIsCreatingAdmin(true)
+    try {
+      const response = await fetch("http://localhost:3000/api/users/create-first-admin", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        }
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || "Error al crear el administrador")
+      }
+
+      const data = await response.json()
+      toast({
+        title: "Administrador creado",
+        description: "Se ha creado el primer administrador con éxito. Usuario: admin, Contraseña: Admin123",
+      })
+
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Ocurrió un error al crear el administrador",
+        variant: "destructive",
+      })
+    } finally {
+      setIsCreatingAdmin(false)
+    }
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsLoading(true)
+
+    try {
+      const response = await fetch("http://localhost:3000/api/users/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
+      })
+
+      if (!response.ok) {
+        throw new Error("Credenciales inválidas")
+      }
+
+      const data = await response.json()
+      localStorage.setItem("token", data.token)
+      
+      toast({
+        title: "Inicio de sesión exitoso",
+        description: "Bienvenido al sistema",
+      })
+
+      router.push("/dashboard")
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Ocurrió un error al iniciar sesión",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-100/90 dark:bg-gray-900/90 p-4 backdrop-blur-sm">
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
-      className="animate-in"
+        className="w-full max-w-md"
     >
-      <div className="flex flex-col gap-4">
-        <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-        <p className="text-muted-foreground">
-          Bienvenido al sistema de punto de venta. Aquí puedes ver un resumen de tu negocio.
-        </p>
-      </div>
-
-      <Tabs defaultValue="overview" className="mt-6" onValueChange={setActiveTab}>
-        <TabsList>
-          <TabsTrigger value="overview">Resumen</TabsTrigger>
-          <TabsTrigger value="analytics">Analíticas</TabsTrigger>
-        </TabsList>
-        <TabsContent value="overview" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <Card className="card-hover">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Ventas Totales</CardTitle>
-                <ShoppingCart className="h-4 w-4 text-muted-foreground" />
+        <Card>
+          <CardHeader className="space-y-1">
+            <CardTitle className="text-2xl font-bold">Iniciar Sesión</CardTitle>
+            <CardDescription>
+              Ingresa tus credenciales para acceder al sistema
+            </CardDescription>
               </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{formatCurrency(totalSales)}</div>
-                <p className="text-xs text-muted-foreground">+20.1% respecto al mes anterior</p>
-              </CardContent>
-            </Card>
-            <Card className="card-hover">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Gastos</CardTitle>
-                <DollarSign className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{formatCurrency(totalExpenses)}</div>
-                <p className="text-xs text-muted-foreground">-4.5% respecto al mes anterior</p>
-              </CardContent>
-            </Card>
-            <Card className="card-hover">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Ganancias</CardTitle>
-                <BarChart className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{formatCurrency(totalProfit)}</div>
-                <p className="text-xs text-muted-foreground">+12.2% respecto al mes anterior</p>
-              </CardContent>
-            </Card>
-            <Card className="card-hover">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Inventario Bajo</CardTitle>
-                <Package className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{lowStockProducts} productos</div>
-                <p className="text-xs text-muted-foreground">Requieren reabastecimiento</p>
-              </CardContent>
-            </Card>
+          <form onSubmit={handleSubmit}>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="userName">Usuario</Label>
+                <Input
+                  id="userName"
+                  type="text"
+                  placeholder="Ingresa tu usuario"
+                  value={formData.userName}
+                  onChange={(e) =>
+                    setFormData({ ...formData, userName: e.target.value })
+                  }
+                  required
+                />
           </div>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-            <Card className="col-span-4 card-hover">
-              <CardHeader>
-                <CardTitle>Ventas Recientes</CardTitle>
-                <CardDescription>Las últimas 5 ventas realizadas</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-8">
-                  {recentSales.map((sale) => (
-                    <div key={sale.id} className="flex items-center">
-                      <div className="space-y-1">
-                        <p className="text-sm font-medium leading-none">Venta #{sale.id}</p>
-                        <p className="text-sm text-muted-foreground">{new Date(sale.date).toLocaleDateString()}</p>
-                      </div>
-                      <div className="ml-auto font-medium">{formatCurrency(sale.total)}</div>
-                    </div>
-                  ))}
+              <div className="space-y-2">
+                <Label htmlFor="password">Contraseña</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={formData.password}
+                  onChange={(e) =>
+                    setFormData({ ...formData, password: e.target.value })
+                  }
+                  required
+                />
                 </div>
               </CardContent>
+            <CardFooter className="flex flex-col gap-2">
+              <Button className="w-full" type="submit" disabled={isLoading}>
+                {isLoading ? "Iniciando sesión..." : "Iniciar Sesión"}
+              </Button>
+              <Button 
+                type="button" 
+                variant="secondary" 
+                className="w-full" 
+                onClick={handleQuickAdminLogin}
+                disabled={isLoading}
+              >
+                Acceso Rápido Admin
+              </Button>
+              <Button 
+                type="button" 
+                variant="outline" 
+                className="w-full" 
+                onClick={handleCreateFirstAdmin}
+                disabled={isCreatingAdmin}
+              >
+                {isCreatingAdmin ? "Creando administrador..." : "Crear Primer Administrador"}
+              </Button>
+            </CardFooter>
+          </form>
             </Card>
-            <Card className="col-span-3 card-hover">
-              <CardHeader>
-                <CardTitle>Empleados Activos</CardTitle>
-                <CardDescription>Total de empleados activos: {activeEmployees}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-8">
-                  {employees
-                    .filter((employee) => employee.status === "active")
-                    .slice(0, 5)
-                    .map((employee) => (
-                      <div key={employee.id} className="flex items-center">
-                        <div className="space-y-1">
-                          <p className="text-sm font-medium leading-none">{employee.name}</p>
-                          <p className="text-sm text-muted-foreground">{employee.position}</p>
-                        </div>
-                      </div>
-                    ))}
-                </div>
-              </CardContent>
-            </Card>
+      </motion.div>
           </div>
-        </TabsContent>
-        <TabsContent value="analytics" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-            <Card className="col-span-4 card-hover">
-              <CardHeader>
-                <CardTitle>Análisis de Ventas</CardTitle>
-                <CardDescription>Distribución de ventas por método de pago</CardDescription>
-              </CardHeader>
-              <CardContent className="pl-2">
-                <div className="flex h-[200px] items-center justify-center">
-                  <div className="flex flex-col items-center gap-2">
-                    <div className="text-xl font-bold">Gráfico de Ventas</div>
-                    <div className="text-sm text-muted-foreground">(Simulación de gráfico)</div>
-                    <div className="flex gap-4 mt-4">
-                      <div className="flex items-center gap-1">
-                        <div className="h-3 w-3 rounded-full bg-primary"></div>
-                        <span className="text-sm">Efectivo</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <div className="h-3 w-3 rounded-full bg-blue-500"></div>
-                        <span className="text-sm">Tarjeta</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <div className="h-3 w-3 rounded-full bg-green-500"></div>
-                        <span className="text-sm">Transferencia</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="col-span-3 card-hover">
-              <CardHeader>
-                <CardTitle>Productos Más Vendidos</CardTitle>
-                <CardDescription>Top 5 productos con más ventas</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-8">
-                  {products.slice(0, 5).map((product) => (
-                    <div key={product.id} className="flex items-center">
-                      <div className="space-y-1">
-                        <p className="text-sm font-medium leading-none">{product.name}</p>
-                        <p className="text-sm text-muted-foreground">Stock: {product.stock} unidades</p>
-                      </div>
-                      <div className="ml-auto font-medium">{formatCurrency(product.price)}</div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-      </Tabs>
-    </motion.div>
   )
 }

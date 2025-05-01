@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -15,94 +15,87 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Edit, Plus, Search, Trash2 } from "lucide-react"
-import { suppliers, type Supplier, getProductName, generateId } from "@/lib/data"
-import { useToast } from "@/components/ui/use-toast"
+import { Badge } from "@/components/ui/badge"
+import { Edit, Search, Trash2, Building2 } from "lucide-react"
 import { motion } from "framer-motion"
+import { Supplier } from "./types"
+import { useSuppliers, useSupplierForm } from "./hooks"
 
 export default function SuppliersPage() {
-  const { toast } = useToast()
-  const [searchTerm, setSearchTerm] = useState("")
-  const [suppliersList, setSuppliersList] = useState<Supplier[]>(suppliers)
+  const {
+    suppliers,
+    isLoading,
+    searchTerm,
+    setSearchTerm,
+    loadSuppliers,
+    createSupplier,
+    updateSupplier,
+    deleteSupplier
+  } = useSuppliers()
+
+  const {
+    formData: newSupplier,
+    updateField: updateNewSupplier,
+    resetForm: resetNewSupplierForm,
+    errors: newSupplierErrors,
+    isValid: isNewSupplierValid
+  } = useSupplierForm()
+
+  const {
+    formData: editSupplier,
+    updateField: updateEditSupplier,
+    resetForm: resetEditForm,
+    errors: editSupplierErrors,
+    isValid: isEditSupplierValid
+  } = useSupplierForm()
+
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
-  const [currentSupplier, setCurrentSupplier] = useState<Supplier | null>(null)
-  const [newSupplier, setNewSupplier] = useState<Partial<Supplier>>({
-    name: "",
-    contact: "",
-    email: "",
-    phone: "",
-    address: "",
-    products: [],
-  })
+  const [currentSupplierId, setCurrentSupplierId] = useState<number | null>(null)
 
-  const filteredSuppliers = suppliersList.filter(
-    (supplier) =>
-      supplier.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      supplier.contact.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      supplier.email.toLowerCase().includes(searchTerm.toLowerCase()),
-  )
+  useEffect(() => {
+    loadSuppliers()
+  }, [loadSuppliers])
 
-  const handleAddSupplier = () => {
-    const supplier: Supplier = {
-      id: generateId("SUP"),
-      name: newSupplier.name || "",
-      contact: newSupplier.contact || "",
-      email: newSupplier.email || "",
-      phone: newSupplier.phone || "",
-      address: newSupplier.address || "",
-      products: newSupplier.products || [],
+  const handleAddSupplier = async () => {
+    if (!isNewSupplierValid()) return;
+    
+    try {
+      await createSupplier(newSupplier)
+      setIsAddDialogOpen(false)
+      resetNewSupplierForm()
+    } catch {
+      // Error ya manejado por el hook
     }
-
-    setSuppliersList([...suppliersList, supplier])
-    setIsAddDialogOpen(false)
-    setNewSupplier({
-      name: "",
-      contact: "",
-      email: "",
-      phone: "",
-      address: "",
-      products: [],
-    })
-
-    toast({
-      title: "Proveedor agregado",
-      description: `${supplier.name} ha sido agregado correctamente.`,
-    })
   }
 
-  const handleEditSupplier = () => {
-    if (!currentSupplier) return
+  const handleEditSupplier = async () => {
+    if (!isEditSupplierValid() || currentSupplierId === null) return;
 
-    const updatedSuppliers = suppliersList.map((sup) => (sup.id === currentSupplier.id ? currentSupplier : sup))
-
-    setSuppliersList(updatedSuppliers)
-    setIsEditDialogOpen(false)
-    setCurrentSupplier(null)
-
-    toast({
-      title: "Proveedor actualizado",
-      description: `La información de ${currentSupplier.name} ha sido actualizada.`,
-    })
+    try {
+      await updateSupplier(currentSupplierId, editSupplier)
+      setIsEditDialogOpen(false)
+      setCurrentSupplierId(null)
+      resetEditForm()
+    } catch {
+      // Error ya manejado por el hook
+    }
   }
 
-  const handleDeleteSupplier = (id: string) => {
-    const supplierToDelete = suppliersList.find((sup) => sup.id === id)
-    if (!supplierToDelete) return
-
-    const updatedSuppliers = suppliersList.filter((sup) => sup.id !== id)
-    setSuppliersList(updatedSuppliers)
-
-    toast({
-      title: "Proveedor eliminado",
-      description: `${supplierToDelete.name} ha sido eliminado correctamente.`,
-      variant: "destructive",
-    })
+  const handleDeleteSupplier = async (id: number) => {
+    try {
+      await deleteSupplier(id)
+    } catch {
+      // Error ya manejado por el hook
+    }
   }
 
   const openEditDialog = (supplier: Supplier) => {
-    setCurrentSupplier({ ...supplier })
+    setCurrentSupplierId(supplier.id)
+    updateEditSupplier('name', supplier.name)
+    updateEditSupplier('contact', supplier.contact)
+    updateEditSupplier('phone', supplier.phone)
+    updateEditSupplier('email', supplier.email)
     setIsEditDialogOpen(true)
   }
 
@@ -115,7 +108,7 @@ export default function SuppliersPage() {
     >
       <div className="flex flex-col gap-4">
         <h1 className="text-3xl font-bold tracking-tight">Proveedores</h1>
-        <p className="text-muted-foreground">Administra la información de tus proveedores.</p>
+        <p className="text-muted-foreground">Administra la información de los proveedores de tu negocio.</p>
       </div>
 
       <div className="flex items-center justify-between my-6">
@@ -132,7 +125,7 @@ export default function SuppliersPage() {
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
           <DialogTrigger asChild>
             <Button>
-              <Plus className="mr-2 h-4 w-4" />
+              <Building2 className="mr-2 h-4 w-4" />
               Agregar Proveedor
             </Button>
           </DialogTrigger>
@@ -144,66 +137,81 @@ export default function SuppliersPage() {
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="name" className="text-right">
-                  Nombre
+                  Empresa
                 </Label>
+                <div className="col-span-3 space-y-2">
                 <Input
                   id="name"
-                  className="col-span-3"
+                    className={newSupplierErrors.name?.length ? "border-red-500" : ""}
                   value={newSupplier.name}
-                  onChange={(e) => setNewSupplier({ ...newSupplier, name: e.target.value })}
+                    onChange={(e) => updateNewSupplier('name', e.target.value)}
+                    placeholder="Nombre de la empresa"
                 />
+                  {newSupplierErrors.name?.length > 0 && (
+                    <p className="text-sm text-red-500">{newSupplierErrors.name.join(", ")}</p>
+                  )}
+                </div>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="contact" className="text-right">
                   Contacto
                 </Label>
+                <div className="col-span-3 space-y-2">
                 <Input
                   id="contact"
-                  className="col-span-3"
+                    className={newSupplierErrors.contact?.length ? "border-red-500" : ""}
                   value={newSupplier.contact}
-                  onChange={(e) => setNewSupplier({ ...newSupplier, contact: e.target.value })}
+                    onChange={(e) => updateNewSupplier('contact', e.target.value)}
+                    placeholder="Nombre del contacto"
                 />
+                  {newSupplierErrors.contact?.length > 0 && (
+                    <p className="text-sm text-red-500">{newSupplierErrors.contact.join(", ")}</p>
+                  )}
               </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="email" className="text-right">
-                  Email
-                </Label>
-                <Input
-                  id="email"
-                  type="email"
-                  className="col-span-3"
-                  value={newSupplier.email}
-                  onChange={(e) => setNewSupplier({ ...newSupplier, email: e.target.value })}
-                />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="phone" className="text-right">
                   Teléfono
                 </Label>
+                <div className="col-span-3 space-y-2">
                 <Input
                   id="phone"
-                  className="col-span-3"
+                    className={newSupplierErrors.phone?.length ? "border-red-500" : ""}
                   value={newSupplier.phone}
-                  onChange={(e) => setNewSupplier({ ...newSupplier, phone: e.target.value })}
+                    onChange={(e) => updateNewSupplier('phone', e.target.value)}
+                    placeholder="Número de teléfono"
                 />
+                  {newSupplierErrors.phone?.length > 0 && (
+                    <p className="text-sm text-red-500">{newSupplierErrors.phone.join(", ")}</p>
+                  )}
+                </div>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="address" className="text-right">
-                  Dirección
+                <Label htmlFor="email" className="text-right">
+                  Email
                 </Label>
-                <Textarea
-                  id="address"
-                  className="col-span-3"
-                  value={newSupplier.address}
-                  onChange={(e) => setNewSupplier({ ...newSupplier, address: e.target.value })}
-                />
+                <div className="col-span-3 space-y-2">
+                  <Input
+                    id="email"
+                    type="email"
+                    className={newSupplierErrors.email?.length ? "border-red-500" : ""}
+                    value={newSupplier.email}
+                    onChange={(e) => updateNewSupplier('email', e.target.value)}
+                    placeholder="Correo electrónico"
+                  />
+                  {newSupplierErrors.email?.length > 0 && (
+                    <p className="text-sm text-red-500">{newSupplierErrors.email.join(", ")}</p>
+                  )}
+                </div>
               </div>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
                 Cancelar
               </Button>
-              <Button onClick={handleAddSupplier}>Guardar</Button>
+              <Button onClick={handleAddSupplier} disabled={isLoading}>
+                {isLoading ? "Guardando..." : "Guardar"}
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -212,52 +220,54 @@ export default function SuppliersPage() {
       <Card>
         <CardHeader>
           <CardTitle>Lista de Proveedores</CardTitle>
-          <CardDescription>Total de proveedores: {suppliersList.length}</CardDescription>
+          <CardDescription>Total de proveedores: {suppliers.length}</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Nombre</TableHead>
+                <TableHead>Empresa</TableHead>
                 <TableHead>Contacto</TableHead>
-                <TableHead>Email</TableHead>
                 <TableHead>Teléfono</TableHead>
-                <TableHead>Dirección</TableHead>
-                <TableHead>Productos</TableHead>
-                <TableHead>Acciones</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Estado</TableHead>
+                <TableHead className="text-right">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredSuppliers.length === 0 ? (
+              {suppliers.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center">
-                    No se encontraron proveedores
+                  <TableCell colSpan={6} className="text-center">
+                    {isLoading ? "Cargando..." : "No se encontraron proveedores"}
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredSuppliers.map((supplier) => (
+                suppliers.map((supplier) => (
                   <TableRow key={supplier.id}>
                     <TableCell className="font-medium">{supplier.name}</TableCell>
                     <TableCell>{supplier.contact}</TableCell>
-                    <TableCell>{supplier.email}</TableCell>
                     <TableCell>{supplier.phone}</TableCell>
-                    <TableCell className="max-w-[200px] truncate">{supplier.address}</TableCell>
+                    <TableCell>{supplier.email}</TableCell>
                     <TableCell>
-                      {supplier.products.length > 0
-                        ? supplier.products.map((id) => getProductName(id)).join(", ")
-                        : "Sin productos"}
+                      <Badge variant={!supplier.isDeleted ? "default" : "secondary"}>
+                        {!supplier.isDeleted ? "Activo" : "Inactivo"}
+                      </Badge>
                     </TableCell>
-                    <TableCell>
-                      <div className="flex space-x-2">
-                        <Button variant="ghost" size="icon" onClick={() => openEditDialog(supplier)}>
-                          <Edit className="h-4 w-4" />
-                          <span className="sr-only">Editar</span>
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleDeleteSupplier(supplier.id)}>
-                          <Trash2 className="h-4 w-4" />
-                          <span className="sr-only">Eliminar</span>
-                        </Button>
-                      </div>
+                    <TableCell className="text-right space-x-2">
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => openEditDialog(supplier)}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => handleDeleteSupplier(supplier.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))
@@ -274,71 +284,84 @@ export default function SuppliersPage() {
             <DialogTitle>Editar Proveedor</DialogTitle>
             <DialogDescription>Actualiza la información del proveedor.</DialogDescription>
           </DialogHeader>
-          {currentSupplier && (
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="edit-name" className="text-right">
-                  Nombre
+                Empresa
                 </Label>
+              <div className="col-span-3 space-y-2">
                 <Input
                   id="edit-name"
-                  className="col-span-3"
-                  value={currentSupplier.name}
-                  onChange={(e) => setCurrentSupplier({ ...currentSupplier, name: e.target.value })}
+                  className={editSupplierErrors.name?.length ? "border-red-500" : ""}
+                  value={editSupplier.name}
+                  onChange={(e) => updateEditSupplier('name', e.target.value)}
+                  placeholder="Nombre de la empresa"
                 />
+                {editSupplierErrors.name?.length > 0 && (
+                  <p className="text-sm text-red-500">{editSupplierErrors.name.join(", ")}</p>
+                )}
+              </div>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="edit-contact" className="text-right">
                   Contacto
                 </Label>
+              <div className="col-span-3 space-y-2">
                 <Input
                   id="edit-contact"
-                  className="col-span-3"
-                  value={currentSupplier.contact}
-                  onChange={(e) => setCurrentSupplier({ ...currentSupplier, contact: e.target.value })}
+                  className={editSupplierErrors.contact?.length ? "border-red-500" : ""}
+                  value={editSupplier.contact}
+                  onChange={(e) => updateEditSupplier('contact', e.target.value)}
+                  placeholder="Nombre del contacto"
                 />
+                {editSupplierErrors.contact?.length > 0 && (
+                  <p className="text-sm text-red-500">{editSupplierErrors.contact.join(", ")}</p>
+                )}
               </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="edit-email" className="text-right">
-                  Email
-                </Label>
-                <Input
-                  id="edit-email"
-                  type="email"
-                  className="col-span-3"
-                  value={currentSupplier.email}
-                  onChange={(e) => setCurrentSupplier({ ...currentSupplier, email: e.target.value })}
-                />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="edit-phone" className="text-right">
                   Teléfono
                 </Label>
+              <div className="col-span-3 space-y-2">
                 <Input
                   id="edit-phone"
-                  className="col-span-3"
-                  value={currentSupplier.phone}
-                  onChange={(e) => setCurrentSupplier({ ...currentSupplier, phone: e.target.value })}
+                  className={editSupplierErrors.phone?.length ? "border-red-500" : ""}
+                  value={editSupplier.phone}
+                  onChange={(e) => updateEditSupplier('phone', e.target.value)}
+                  placeholder="Número de teléfono"
                 />
+                {editSupplierErrors.phone?.length > 0 && (
+                  <p className="text-sm text-red-500">{editSupplierErrors.phone.join(", ")}</p>
+                )}
+              </div>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="edit-address" className="text-right">
-                  Dirección
+              <Label htmlFor="edit-email" className="text-right">
+                Email
                 </Label>
-                <Textarea
-                  id="edit-address"
-                  className="col-span-3"
-                  value={currentSupplier.address}
-                  onChange={(e) => setCurrentSupplier({ ...currentSupplier, address: e.target.value })}
+              <div className="col-span-3 space-y-2">
+                <Input
+                  id="edit-email"
+                  type="email"
+                  className={editSupplierErrors.email?.length ? "border-red-500" : ""}
+                  value={editSupplier.email}
+                  onChange={(e) => updateEditSupplier('email', e.target.value)}
+                  placeholder="Correo electrónico"
                 />
+                {editSupplierErrors.email?.length > 0 && (
+                  <p className="text-sm text-red-500">{editSupplierErrors.email.join(", ")}</p>
+                )}
               </div>
             </div>
-          )}
+          </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
               Cancelar
             </Button>
-            <Button onClick={handleEditSupplier}>Guardar Cambios</Button>
+            <Button onClick={handleEditSupplier} disabled={isLoading}>
+              {isLoading ? "Guardando..." : "Guardar"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

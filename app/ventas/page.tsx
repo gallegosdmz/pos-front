@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -9,32 +9,73 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { CalendarIcon, CreditCard, Download, Search } from "lucide-react"
-import { sales, formatCurrency, formatDate, getEmployeeName } from "@/lib/data"
+import { CalendarIcon, CreditCard, Download, Search, ChevronDown, ChevronUp, Eye } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { format } from "date-fns"
+import { format, isValid, parseISO } from "date-fns"
 import { es } from "date-fns/locale"
 import { motion } from "framer-motion"
+import { useQuery, UseQueryOptions } from "@tanstack/react-query"
+import { SalesService } from "./service"
+import type { Sale, SaleDetail } from "./types"
+import { Loader2 } from "lucide-react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+
+// Función de formato de fecha
+const formatDate = (date: string | Date) => {
+  try {
+    const dateObj = typeof date === 'string' ? parseISO(date) : date
+    if (!isValid(dateObj)) {
+      return 'Fecha inválida'
+    }
+    return format(dateObj, "PPP", { locale: es })
+  } catch (error) {
+    console.error('Error formatting date:', error)
+    return 'Fecha inválida'
+  }
+}
+
+const formatCurrency = (amount: number) => {
+  return new Intl.NumberFormat('es-MX', {
+    style: 'currency',
+    currency: 'MXN'
+  }).format(amount)
+}
 
 export default function SalesPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
-  const [paymentMethodFilter, setPaymentMethodFilter] = useState<string>("all")
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined)
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined)
+  const [selectedSaleId, setSelectedSaleId] = useState<number | null>(null)
 
-  const filteredSales = sales.filter((sale) => {
+  // Fetch sales data
+  const { data: sales = [], isLoading, error } = useQuery<Sale[], Error>({
+    queryKey: ['sales'],
+    queryFn: () => SalesService.getSales(),
+    retry: 2
+  } as UseQueryOptions<Sale[], Error>)
+
+  // Fetch sale details when a sale is selected
+  const { data: saleDetails = [], isLoading: isLoadingDetails } = useQuery<SaleDetail[], Error>({
+    queryKey: ['saleDetails', selectedSaleId],
+    queryFn: () => selectedSaleId ? SalesService.getSaleDetails(selectedSaleId) : Promise.resolve([]),
+    enabled: !!selectedSaleId
+  } as UseQueryOptions<SaleDetail[], Error>)
+
+  useEffect(() => {
+    if (error) console.error('Error al cargar ventas:', error)
+  }, [error])
+
+  useEffect(() => {
+    if (isLoadingDetails) console.error('Error al cargar detalles:', isLoadingDetails)
+  }, [isLoadingDetails])
+
+  const filteredSales = sales.filter((sale: Sale) => {
     // Filtro de búsqueda
-    const searchMatch =
-      sale.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      getEmployeeName(sale.employeeId).toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (sale.customer && sale.customer.toLowerCase().includes(searchTerm.toLowerCase()))
+    const searchMatch = String(sale.id).toLowerCase().includes(searchTerm.toLowerCase())
 
     // Filtro de estado
     const statusMatch = statusFilter === "all" || sale.status === statusFilter
-
-    // Filtro de método de pago
-    const paymentMatch = paymentMethodFilter === "all" || sale.paymentMethod === paymentMethodFilter
 
     // Filtro de fecha
     let dateMatch = true
@@ -49,12 +90,32 @@ export default function SalesPage() {
       dateMatch = dateMatch && saleDate < nextDay
     }
 
-    return searchMatch && statusMatch && paymentMatch && dateMatch
+    return searchMatch && statusMatch && dateMatch
   })
 
   const totalAmount = filteredSales
-    .filter((sale) => sale.status === "completed")
-    .reduce((sum, sale) => sum + sale.total, 0)
+    .filter((sale: Sale) => sale.status === "completed")
+    .reduce((sum: number, sale: Sale) => sum + sale.total, 0)
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[50vh] gap-4">
+        <h2 className="text-xl font-semibold text-destructive">Error al cargar las ventas</h2>
+        <p className="text-muted-foreground">{error.message}</p>
+        <p className="text-sm text-muted-foreground">
+          Asegúrate de que:
+          <ul className="list-disc list-inside mt-2">
+            <li>El servidor está corriendo en {process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}</li>
+            <li>Has iniciado sesión correctamente</li>
+            <li>Tienes conexión a internet</li>
+          </ul>
+        </p>
+        <Button onClick={() => window.location.reload()}>
+          Intentar de nuevo
+        </Button>
+      </div>
+    )
+  }
 
   return (
     <motion.div
@@ -88,17 +149,6 @@ export default function SalesPage() {
               <SelectItem value="all">Todos los estados</SelectItem>
               <SelectItem value="completed">Completadas</SelectItem>
               <SelectItem value="cancelled">Canceladas</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={paymentMethodFilter} onValueChange={setPaymentMethodFilter}>
-            <SelectTrigger className="w-full md:w-[180px]">
-              <SelectValue placeholder="Método de pago" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos los métodos</SelectItem>
-              <SelectItem value="cash">Efectivo</SelectItem>
-              <SelectItem value="card">Tarjeta</SelectItem>
-              <SelectItem value="transfer">Transferencia</SelectItem>
             </SelectContent>
           </Select>
           <div className="flex gap-2">
@@ -154,57 +204,100 @@ export default function SalesPage() {
           </Button>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>ID</TableHead>
-                <TableHead>Fecha</TableHead>
-                <TableHead>Vendedor</TableHead>
-                <TableHead>Cliente</TableHead>
-                <TableHead>Método de Pago</TableHead>
-                <TableHead>Total</TableHead>
-                <TableHead>Estado</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredSales.length === 0 ? (
+          {isLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center">
-                    No se encontraron ventas
-                  </TableCell>
+                  <TableHead>ID</TableHead>
+                  <TableHead>Fecha</TableHead>
+                  <TableHead>Total</TableHead>
+                  <TableHead>Estado</TableHead>
+                  <TableHead className="w-[100px]">Acciones</TableHead>
                 </TableRow>
-              ) : (
-                filteredSales.map((sale) => (
-                  <TableRow key={sale.id}>
-                    <TableCell className="font-medium">{sale.id}</TableCell>
-                    <TableCell>{formatDate(sale.date)}</TableCell>
-                    <TableCell>{getEmployeeName(sale.employeeId)}</TableCell>
-                    <TableCell>{sale.customer || "Cliente General"}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center">
-                        {sale.paymentMethod === "card" && <CreditCard className="mr-2 h-4 w-4" />}
-                        {sale.paymentMethod === "cash" && <span className="mr-2">💵</span>}
-                        {sale.paymentMethod === "transfer" && <span className="mr-2">🏦</span>}
-                        {sale.paymentMethod === "cash"
-                          ? "Efectivo"
-                          : sale.paymentMethod === "card"
-                            ? "Tarjeta"
-                            : "Transferencia"}
-                      </div>
-                    </TableCell>
-                    <TableCell>{formatCurrency(sale.total)}</TableCell>
-                    <TableCell>
-                      <Badge variant={sale.status === "completed" ? "default" : "destructive"}>
-                        {sale.status === "completed" ? "Completada" : "Cancelada"}
-                      </Badge>
+              </TableHeader>
+              <TableBody>
+                {filteredSales.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center">
+                      No se encontraron ventas
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                ) : (
+                  filteredSales.map((sale: Sale) => (
+                    <TableRow key={`sale-${sale.id}`}>
+                      <TableCell className="font-medium">{sale.id}</TableCell>
+                      <TableCell>{formatDate(sale.date)}</TableCell>
+                      <TableCell>{formatCurrency(sale.total)}</TableCell>
+                      <TableCell>
+                        <Badge variant={sale.status === "completed" ? "default" : "destructive"}>
+                          {sale.status === "completed" ? "Completada" : "Cancelada"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setSelectedSaleId(sale.id)}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
+
+      <Dialog open={!!selectedSaleId} onOpenChange={() => setSelectedSaleId(null)}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Detalles de la Venta #{selectedSaleId}</DialogTitle>
+          </DialogHeader>
+          {isLoadingDetails ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Producto</TableHead>
+                    <TableHead>Cantidad</TableHead>
+                    <TableHead>Precio Unitario</TableHead>
+                    <TableHead>Subtotal</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {saleDetails.map((detail: SaleDetail) => (
+                    <TableRow key={detail.id}>
+                      <TableCell>{detail.product?.name || `Producto ${detail.productId}`}</TableCell>
+                      <TableCell>{detail.quantity}</TableCell>
+                      <TableCell>{formatCurrency(detail.unitPrice)}</TableCell>
+                      <TableCell>{formatCurrency(detail.quantity * detail.unitPrice)}</TableCell>
+                    </TableRow>
+                  ))}
+                  <TableRow>
+                    <TableCell colSpan={3} className="text-right font-medium">
+                      Total:
+                    </TableCell>
+                    <TableCell className="font-medium">
+                      {formatCurrency(saleDetails.reduce((sum, detail) => sum + (detail.quantity * detail.unitPrice), 0))}
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </motion.div>
   )
 }

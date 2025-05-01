@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -19,162 +19,165 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Edit, Plus, Search, Trash2 } from "lucide-react"
-import {
-  products,
-  categories,
-  type Product,
-  type Category,
-  getCategoryName,
-  formatCurrency,
-  generateId,
-} from "@/lib/data"
-import { useToast } from "@/components/ui/use-toast"
 import { motion } from "framer-motion"
 import { QRCodeCanvas } from "qrcode.react"
+import { useProducts, useProductForm } from "./hooks"
+import { Product } from "./types"
+import { useCategories, useCategoryForm } from "@/app/categorias/hooks"
+import { Category } from "@/app/categorias/types"
+import { formatCurrency, getCategoryName, generateId } from "@/lib/data"
+import { toast } from "@/components/ui/use-toast"
+import { useSuppliers } from "@/app/proveedores/hooks"
+
+// Mantenemos las categorías de ejemplo por ahora
 
 export default function InventoryPage() {
-  const { toast } = useToast()
-  const [searchTerm, setSearchTerm] = useState("")
-  const [productsList, setProductsList] = useState<Product[]>(products)
-  const [categoriesList, setCategoriesList] = useState<Category[]>(categories)
+  const {
+    products,
+    isLoading: isLoadingProducts,
+    searchTerm,
+    setSearchTerm,
+    loadProducts,
+    createProduct,
+    updateProduct,
+    deleteProduct
+  } = useProducts()
+
+  const {
+    categories,
+    isLoading: isLoadingCategories,
+    loadCategories,
+    createCategory,
+    updateCategory,
+    deleteCategory
+  } = useCategories()
+
+  const {
+    suppliers,
+    isLoading: isLoadingSuppliers,
+    loadSuppliers
+  } = useSuppliers()
+
+  const {
+    formData: newProduct,
+    updateField: updateNewProduct,
+    resetForm: resetNewProductForm,
+    errors: newProductErrors,
+    isValid: isNewProductValid
+  } = useProductForm()
+
+  const {
+    formData: newCategory,
+    updateField: updateNewCategory,
+    resetForm: resetNewCategoryForm,
+    errors: newCategoryErrors,
+    isValid: isNewCategoryValid
+  } = useCategoryForm()
+
+  const {
+    formData: editProduct,
+    updateField: updateEditProduct,
+    resetForm: resetEditProductForm,
+    errors: editProductErrors,
+    isValid: isEditProductValid,
+    setFormData: setEditProductFormData
+  } = useProductForm()
+
+  const {
+    formData: editCategory,
+    updateField: updateEditCategory,
+    resetForm: resetEditCategoryForm,
+    errors: editCategoryErrors,
+    isValid: isEditCategoryValid,
+    setFormData: setEditCategoryFormData
+  } = useCategoryForm()
+
+  // Estados para diálogos
   const [isAddProductDialogOpen, setIsAddProductDialogOpen] = useState(false)
   const [isEditProductDialogOpen, setIsEditProductDialogOpen] = useState(false)
   const [isAddCategoryDialogOpen, setIsAddCategoryDialogOpen] = useState(false)
   const [isEditCategoryDialogOpen, setIsEditCategoryDialogOpen] = useState(false)
-  const [currentProduct, setCurrentProduct] = useState<Product | null>(null)
-  const [currentCategory, setCurrentCategory] = useState<Category | null>(null)
-  const [newProduct, setNewProduct] = useState<Partial<Product>>({
-    name: "",
-    description: "",
-    price: 0,
-    stock: 0,
-    categoryId: "",
-    barcode: "",
-    cost: 0,
-  })
-  const [newCategory, setNewCategory] = useState<Partial<Category>>({
-    name: "",
-    description: "",
-  })
-
+  const [currentProduct, setCurrentProduct] = useState<number | null>(null)
+  const [currentCategory, setCurrentCategory] = useState<string | null>(null)
   const [isQRDialogOpen, setIsQRDialogOpen] = useState(false)
   const [currentQRProduct, setCurrentQRProduct] = useState<Product | null>(null)
 
-  const filteredProducts = productsList.filter(
-    (product) =>
-      product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      getCategoryName(product.categoryId).toLowerCase().includes(searchTerm.toLowerCase()),
-  )
+  // Cargar productos y categorías al montar el componente
+  useEffect(() => {
+    loadProducts()
+    loadCategories()
+    loadSuppliers()
+  }, [loadProducts, loadCategories, loadSuppliers])
 
-  const filteredCategories = categoriesList.filter(
-    (category) =>
-      category.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      category.description.toLowerCase().includes(searchTerm.toLowerCase()),
-  )
-
-  const handleAddProduct = () => {
-    const product: Product = {
-      id: generateId("PROD"),
-      name: newProduct.name || "",
-      description: newProduct.description || "",
-      price: newProduct.price || 0,
-      stock: newProduct.stock || 0,
-      categoryId: newProduct.categoryId || "",
-      barcode: newProduct.barcode || "",
-      image: "/placeholder.svg?height=100&width=100",
-      cost: newProduct.cost || 0,
-      createdAt: new Date().toISOString(),
+  const handleAddProduct = async () => {
+    console.log('Validando producto:', newProduct)
+    if (!isNewProductValid()) {
+      console.log('Validación fallida')
+      return;
     }
-
-    setProductsList([...productsList, product])
-    setIsAddProductDialogOpen(false)
-    setNewProduct({
-      name: "",
-      description: "",
-      price: 0,
-      stock: 0,
-      categoryId: "",
-      barcode: "",
-      cost: 0,
-    })
-
-    toast({
-      title: "Producto agregado",
-      description: `${product.name} ha sido agregado correctamente.`,
-    })
-  }
-
-  const handleEditProduct = () => {
-    if (!currentProduct) return
-
-    const updatedProducts = productsList.map((prod) => (prod.id === currentProduct.id ? currentProduct : prod))
-
-    setProductsList(updatedProducts)
-    setIsEditProductDialogOpen(false)
-    setCurrentProduct(null)
-
-    toast({
-      title: "Producto actualizado",
-      description: `La información de ${currentProduct.name} ha sido actualizada.`,
-    })
-  }
-
-  const handleDeleteProduct = (id: string) => {
-    const productToDelete = productsList.find((prod) => prod.id === id)
-    if (!productToDelete) return
-
-    const updatedProducts = productsList.filter((prod) => prod.id !== id)
-    setProductsList(updatedProducts)
-
-    toast({
-      title: "Producto eliminado",
-      description: `${productToDelete.name} ha sido eliminado correctamente.`,
-      variant: "destructive",
-    })
-  }
-
-  const handleAddCategory = () => {
-    const category: Category = {
-      id: generateId("CAT"),
-      name: newCategory.name || "",
-      description: newCategory.description || "",
+    
+    try {
+      console.log('Intentando crear producto:', newProduct)
+      const response = await createProduct(newProduct)
+      console.log('Producto creado:', response)
+      await loadProducts() // Recargar la lista de productos
+      setIsAddProductDialogOpen(false)
+      resetNewProductForm()
+    } catch (error) {
+      console.error('Error al crear producto:', error)
+      // Error ya manejado por el hook
     }
-
-    setCategoriesList([...categoriesList, category])
-    setIsAddCategoryDialogOpen(false)
-    setNewCategory({
-      name: "",
-      description: "",
-    })
-
-    toast({
-      title: "Categoría agregada",
-      description: `${category.name} ha sido agregada correctamente.`,
-    })
   }
 
-  const handleEditCategory = () => {
-    if (!currentCategory) return
+  const handleEditProduct = async () => {
+    if (!isEditProductValid() || !currentProduct) return;
 
-    const updatedCategories = categoriesList.map((cat) => (cat.id === currentCategory.id ? currentCategory : cat))
-
-    setCategoriesList(updatedCategories)
-    setIsEditCategoryDialogOpen(false)
-    setCurrentCategory(null)
-
-    toast({
-      title: "Categoría actualizada",
-      description: `La información de ${currentCategory.name} ha sido actualizada.`,
-    })
+    try {
+      await updateProduct(currentProduct, editProduct)
+      setIsEditProductDialogOpen(false)
+      setCurrentProduct(null)
+      resetEditProductForm()
+    } catch {
+      // Error ya manejado por el hook
+    }
   }
 
-  const handleDeleteCategory = (id: string) => {
-    const categoryToDelete = categoriesList.find((cat) => cat.id === id)
-    if (!categoryToDelete) return
+  const handleDeleteProduct = async (id: number) => {
+    try {
+      await deleteProduct(id)
+    } catch {
+      // Error ya manejado por el hook
+    }
+  }
 
+  const handleAddCategory = async () => {
+    if (!isNewCategoryValid()) return;
+    
+    try {
+      await createCategory(newCategory)
+      setIsAddCategoryDialogOpen(false)
+      resetNewCategoryForm()
+    } catch {
+      // Error ya manejado por el hook
+    }
+  }
+
+  const handleEditCategory = async () => {
+    if (!isEditCategoryValid() || !currentCategory) return;
+
+    try {
+      await updateCategory(currentCategory, editCategory)
+      setIsEditCategoryDialogOpen(false)
+      setCurrentCategory(null)
+      resetEditCategoryForm()
+    } catch {
+      // Error ya manejado por el hook
+    }
+  }
+
+  const handleDeleteCategory = async (id: string) => {
     // Verificar si hay productos que usan esta categoría
-    const productsWithCategory = productsList.filter((prod) => prod.categoryId === id)
+    const productsWithCategory = products.filter((prod) => String(prod.category) === id)
 
     if (productsWithCategory.length > 0) {
       toast({
@@ -185,23 +188,33 @@ export default function InventoryPage() {
       return
     }
 
-    const updatedCategories = categoriesList.filter((cat) => cat.id !== id)
-    setCategoriesList(updatedCategories)
-
-    toast({
-      title: "Categoría eliminada",
-      description: `${categoryToDelete.name} ha sido eliminada correctamente.`,
-      variant: "destructive",
-    })
+    try {
+      await deleteCategory(id)
+    } catch {
+      // Error ya manejado por el hook
+    }
   }
 
-  const openEditProductDialog = (product: Product) => {
-    setCurrentProduct({ ...product })
+  const openEditDialog = (product: Product) => {
+    setCurrentProduct(product.id)
+    setEditProductFormData({
+      name: product.name,
+      description: product.description,
+      price: product.price,
+      stock: product.stock,
+      purchasePrice: product.purchasePrice,
+      barCode: product.barCode,
+      category: product.category.id,
+      supplier: product.supplier.id
+    })
     setIsEditProductDialogOpen(true)
   }
 
   const openEditCategoryDialog = (category: Category) => {
-    setCurrentCategory({ ...category })
+    setCurrentCategory(String(category.id))
+    setEditCategoryFormData({
+      name: category.name
+    })
     setIsEditCategoryDialogOpen(true)
   }
 
@@ -224,6 +237,14 @@ export default function InventoryPage() {
       document.body.removeChild(downloadLink)
     }
   }
+
+  const handleCategorySelect = (value: string) => {
+    const categoryId = Number(value);
+    console.log('ID de categoría seleccionada:', categoryId);
+    // Actualizar tanto categoryId como supplierId
+    updateNewProduct('category', categoryId);
+    updateNewProduct('supplier', categoryId);
+  };
 
   return (
     <motion.div
@@ -274,97 +295,169 @@ export default function InventoryPage() {
                     <Label htmlFor="name" className="text-right">
                       Nombre
                     </Label>
-                    <Input
-                      id="name"
-                      className="col-span-3"
-                      value={newProduct.name}
-                      onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
-                    />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="description" className="text-right">
-                      Descripción
-                    </Label>
-                    <Input
-                      id="description"
-                      className="col-span-3"
-                      value={newProduct.description}
-                      onChange={(e) => setNewProduct({ ...newProduct, description: e.target.value })}
-                    />
+                    <div className="col-span-3 space-y-2">
+                      <Input
+                        id="name"
+                        className={newProductErrors.name?.length ? "border-red-500" : ""}
+                        value={newProduct.name}
+                        onChange={(e) => updateNewProduct('name', e.target.value)}
+                        placeholder="Nombre del producto"
+                      />
+                      {newProductErrors.name?.length > 0 && (
+                        <p className="text-sm text-red-500">{newProductErrors.name.join(", ")}</p>
+                      )}
+                    </div>
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="price" className="text-right">
                       Precio
                     </Label>
-                    <Input
-                      id="price"
-                      type="number"
-                      className="col-span-3"
-                      value={newProduct.price}
-                      onChange={(e) => setNewProduct({ ...newProduct, price: Number(e.target.value) })}
-                    />
+                    <div className="col-span-3 space-y-2">
+                      <Input
+                        id="price"
+                        type="number"
+                        className={newProductErrors.price?.length ? "border-red-500" : ""}
+                        value={newProduct.price}
+                        onChange={(e) => updateNewProduct('price', Number(e.target.value))}
+                        placeholder="Precio de venta"
+                      />
+                      {newProductErrors.price?.length > 0 && (
+                        <p className="text-sm text-red-500">{newProductErrors.price.join(", ")}</p>
+                      )}
+                    </div>
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="cost" className="text-right">
-                      Costo
+                    <Label htmlFor="purchasePrice" className="text-right">
+                      Precio de Compra
                     </Label>
-                    <Input
-                      id="cost"
-                      type="number"
-                      className="col-span-3"
-                      value={newProduct.cost}
-                      onChange={(e) => setNewProduct({ ...newProduct, cost: Number(e.target.value) })}
-                    />
+                    <div className="col-span-3 space-y-2">
+                      <Input
+                        id="purchasePrice"
+                        type="number"
+                        className={newProductErrors.purchasePrice?.length ? "border-red-500" : ""}
+                        value={newProduct.purchasePrice}
+                        onChange={(e) => updateNewProduct('purchasePrice', Number(e.target.value))}
+                        placeholder="Precio de compra"
+                      />
+                      {newProductErrors.purchasePrice?.length > 0 && (
+                        <p className="text-sm text-red-500">{newProductErrors.purchasePrice.join(", ")}</p>
+                      )}
+                    </div>
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="stock" className="text-right">
                       Stock
                     </Label>
-                    <Input
-                      id="stock"
-                      type="number"
-                      className="col-span-3"
-                      value={newProduct.stock}
-                      onChange={(e) => setNewProduct({ ...newProduct, stock: Number(e.target.value) })}
-                    />
+                    <div className="col-span-3 space-y-2">
+                      <Input
+                        id="stock"
+                        type="number"
+                        className={newProductErrors.stock?.length ? "border-red-500" : ""}
+                        value={newProduct.stock}
+                        onChange={(e) => updateNewProduct('stock', Number(e.target.value))}
+                        placeholder="Cantidad en stock"
+                      />
+                      {newProductErrors.stock?.length > 0 && (
+                        <p className="text-sm text-red-500">{newProductErrors.stock.join(", ")}</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="barCode" className="text-right">
+                      Código de Barras
+                    </Label>
+                    <div className="col-span-3 space-y-2">
+                      <Input
+                        id="barCode"
+                        className={newProductErrors.barCode?.length ? "border-red-500" : ""}
+                        value={newProduct.barCode}
+                        onChange={(e) => updateNewProduct('barCode', e.target.value)}
+                        placeholder="Código de barras"
+                      />
+                      {newProductErrors.barCode?.length > 0 && (
+                        <p className="text-sm text-red-500">{newProductErrors.barCode.join(", ")}</p>
+                      )}
+                    </div>
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="category" className="text-right">
                       Categoría
                     </Label>
-                    <Select
-                      value={newProduct.categoryId}
-                      onValueChange={(value) => setNewProduct({ ...newProduct, categoryId: value })}
-                    >
-                      <SelectTrigger className="col-span-3">
-                        <SelectValue placeholder="Seleccionar categoría" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {categoriesList.map((category) => (
-                          <SelectItem key={category.id} value={category.id}>
-                            {category.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <div className="col-span-3 space-y-2">
+                      <Select
+                        value={String(newProduct.category) || undefined}
+                        onValueChange={(value) => {
+                          updateNewProduct('category', Number(value));
+                        }}
+                      >
+                        <SelectTrigger className={newProductErrors.category?.length ? "border-red-500" : ""}>
+                          <SelectValue placeholder="Seleccionar categoría" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {categories.map((category) => (
+                            <SelectItem key={category.id} value={String(category.id)}>
+                              {category.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {newProductErrors.category?.length > 0 && (
+                        <p className="text-sm text-red-500">{newProductErrors.category.join(", ")}</p>
+                      )}
+                    </div>
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="barcode" className="text-right">
-                      Código de Barras
+                    <Label htmlFor="supplier" className="text-right">
+                      Proveedor
                     </Label>
-                    <Input
-                      id="barcode"
-                      className="col-span-3"
-                      value={newProduct.barcode}
-                      onChange={(e) => setNewProduct({ ...newProduct, barcode: e.target.value })}
-                    />
+                    <div className="col-span-3 space-y-2">
+                      <Select
+                        value={String(newProduct.supplier) || undefined}
+                        onValueChange={(value) => {
+                          updateNewProduct('supplier', Number(value));
+                        }}
+                      >
+                        <SelectTrigger className={newProductErrors.supplier?.length ? "border-red-500" : ""}>
+                          <SelectValue placeholder="Seleccionar proveedor" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {suppliers.map((supplier) => (
+                            <SelectItem key={supplier.id} value={String(supplier.id)}>
+                              {supplier.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {newProductErrors.supplier?.length > 0 && (
+                        <p className="text-sm text-red-500">{newProductErrors.supplier.join(", ")}</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="description" className="text-right">
+                      Descripción
+                    </Label>
+                    <div className="col-span-3 space-y-2">
+                      <Input
+                        id="description"
+                        className={newProductErrors.description?.length ? "border-red-500" : ""}
+                        value={newProduct.description}
+                        onChange={(e) => updateNewProduct('description', e.target.value)}
+                        placeholder="Descripción del producto"
+                      />
+                      {newProductErrors.description?.length > 0 && (
+                        <p className="text-sm text-red-500">{newProductErrors.description.join(", ")}</p>
+                      )}
+                    </div>
                   </div>
                 </div>
                 <DialogFooter>
                   <Button variant="outline" onClick={() => setIsAddProductDialogOpen(false)}>
                     Cancelar
                   </Button>
-                  <Button onClick={handleAddProduct}>Guardar</Button>
+                  <Button onClick={handleAddProduct} disabled={isLoadingProducts}>
+                    {isLoadingProducts ? "Guardando..." : "Guardar"}
+                  </Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
@@ -373,7 +466,7 @@ export default function InventoryPage() {
           <Card>
             <CardHeader>
               <CardTitle>Lista de Productos</CardTitle>
-              <CardDescription>Total de productos: {filteredProducts.length}</CardDescription>
+              <CardDescription>Total de productos: {products.length}</CardDescription>
             </CardHeader>
             <CardContent>
               <Table>
@@ -382,33 +475,43 @@ export default function InventoryPage() {
                     <TableHead>Nombre</TableHead>
                     <TableHead>Descripción</TableHead>
                     <TableHead>Categoría</TableHead>
-                    <TableHead>Precio</TableHead>
-                    <TableHead>Costo</TableHead>
+                    <TableHead>Proveedor</TableHead>
+                    <TableHead>Código</TableHead>
+                    <TableHead>Precio Venta</TableHead>
+                    <TableHead>Precio Compra</TableHead>
                     <TableHead>Stock</TableHead>
                     <TableHead>Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredProducts.length === 0 ? (
+                  {isLoadingProducts ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center">
+                      <TableCell colSpan={9} className="text-center">
+                        Cargando...
+                      </TableCell>
+                    </TableRow>
+                  ) : products.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={9} className="text-center">
                         No se encontraron productos
                       </TableCell>
                     </TableRow>
                   ) : (
-                    filteredProducts.map((product) => (
+                    products.map((product) => (
                       <TableRow key={product.id}>
                         <TableCell className="font-medium">{product.name}</TableCell>
                         <TableCell>{product.description}</TableCell>
-                        <TableCell>{getCategoryName(product.categoryId)}</TableCell>
+                        <TableCell>{product.category.name}</TableCell>
+                        <TableCell>{product.supplier.name}</TableCell>
+                        <TableCell>{product.barCode}</TableCell>
                         <TableCell>{formatCurrency(product.price)}</TableCell>
-                        <TableCell>{formatCurrency(product.cost)}</TableCell>
+                        <TableCell>{formatCurrency(product.purchasePrice)}</TableCell>
                         <TableCell>
                           <Badge variant={product.stock < 10 ? "destructive" : "default"}>{product.stock}</Badge>
                         </TableCell>
                         <TableCell>
                           <div className="flex space-x-2">
-                            <Button variant="ghost" size="icon" onClick={() => openEditProductDialog(product)}>
+                            <Button variant="ghost" size="icon" onClick={() => openEditDialog(product)}>
                               <Edit className="h-4 w-4" />
                               <span className="sr-only">Editar</span>
                             </Button>
@@ -466,29 +569,18 @@ export default function InventoryPage() {
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>Agregar Nueva Categoría</DialogTitle>
-                  <DialogDescription>Ingresa la información de la nueva categoría.</DialogDescription>
+                  <DialogDescription>Ingresa el nombre de la nueva categoría.</DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
                   <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="cat-name" className="text-right">
+                    <Label htmlFor="name" className="text-right">
                       Nombre
                     </Label>
                     <Input
-                      id="cat-name"
+                      id="name"
                       className="col-span-3"
                       value={newCategory.name}
-                      onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })}
-                    />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="cat-description" className="text-right">
-                      Descripción
-                    </Label>
-                    <Input
-                      id="cat-description"
-                      className="col-span-3"
-                      value={newCategory.description}
-                      onChange={(e) => setNewCategory({ ...newCategory, description: e.target.value })}
+                      onChange={(e) => updateNewCategory('name', e.target.value)}
                     />
                   </div>
                 </div>
@@ -505,36 +597,34 @@ export default function InventoryPage() {
           <Card>
             <CardHeader>
               <CardTitle>Lista de Categorías</CardTitle>
-              <CardDescription>Total de categorías: {filteredCategories.length}</CardDescription>
+              <CardDescription>Total de categorías: {categories.length}</CardDescription>
             </CardHeader>
             <CardContent>
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Nombre</TableHead>
-                    <TableHead>Descripción</TableHead>
                     <TableHead>Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredCategories.length === 0 ? (
+                  {categories.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={3} className="text-center">
+                      <TableCell colSpan={2} className="text-center">
                         No se encontraron categorías
                       </TableCell>
                     </TableRow>
                   ) : (
-                    filteredCategories.map((category) => (
+                    categories.map((category) => (
                       <TableRow key={category.id}>
                         <TableCell className="font-medium">{category.name}</TableCell>
-                        <TableCell>{category.description}</TableCell>
                         <TableCell>
                           <div className="flex space-x-2">
                             <Button variant="ghost" size="icon" onClick={() => openEditCategoryDialog(category)}>
                               <Edit className="h-4 w-4" />
                               <span className="sr-only">Editar</span>
                             </Button>
-                            <Button variant="ghost" size="icon" onClick={() => handleDeleteCategory(category.id)}>
+                            <Button variant="ghost" size="icon" onClick={() => handleDeleteCategory(String(category.id))}>
                               <Trash2 className="h-4 w-4" />
                               <span className="sr-only">Eliminar</span>
                             </Button>
@@ -557,146 +647,170 @@ export default function InventoryPage() {
             <DialogTitle>Editar Producto</DialogTitle>
             <DialogDescription>Actualiza la información del producto.</DialogDescription>
           </DialogHeader>
-          {currentProduct && (
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="edit-name" className="text-right">
-                  Nombre
-                </Label>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-name" className="text-right">
+                Nombre
+              </Label>
+              <div className="col-span-3 space-y-2">
                 <Input
                   id="edit-name"
-                  className="col-span-3"
-                  value={currentProduct.name}
-                  onChange={(e) => setCurrentProduct({ ...currentProduct, name: e.target.value })}
+                  className={editProductErrors.name?.length ? "border-red-500" : ""}
+                  value={editProduct.name}
+                  onChange={(e) => updateEditProduct('name', e.target.value)}
+                  placeholder="Nombre del producto"
                 />
+                {editProductErrors.name?.length > 0 && (
+                  <p className="text-sm text-red-500">{editProductErrors.name.join(", ")}</p>
+                )}
               </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="edit-description" className="text-right">
-                  Descripción
-                </Label>
-                <Input
-                  id="edit-description"
-                  className="col-span-3"
-                  value={currentProduct.description}
-                  onChange={(e) => setCurrentProduct({ ...currentProduct, description: e.target.value })}
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="edit-price" className="text-right">
-                  Precio
-                </Label>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-price" className="text-right">
+                Precio
+              </Label>
+              <div className="col-span-3 space-y-2">
                 <Input
                   id="edit-price"
                   type="number"
-                  className="col-span-3"
-                  value={currentProduct.price}
-                  onChange={(e) => setCurrentProduct({ ...currentProduct, price: Number(e.target.value) })}
+                  className={editProductErrors.price?.length ? "border-red-500" : ""}
+                  value={editProduct.price}
+                  onChange={(e) => updateEditProduct('price', Number(e.target.value))}
+                  placeholder="Precio de venta"
                 />
+                {editProductErrors.price?.length > 0 && (
+                  <p className="text-sm text-red-500">{editProductErrors.price.join(", ")}</p>
+                )}
               </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="edit-cost" className="text-right">
-                  Costo
-                </Label>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-purchasePrice" className="text-right">
+                Precio de Compra
+              </Label>
+              <div className="col-span-3 space-y-2">
                 <Input
-                  id="edit-cost"
+                  id="edit-purchasePrice"
                   type="number"
-                  className="col-span-3"
-                  value={currentProduct.cost}
-                  onChange={(e) => setCurrentProduct({ ...currentProduct, cost: Number(e.target.value) })}
+                  className={editProductErrors.purchasePrice?.length ? "border-red-500" : ""}
+                  value={editProduct.purchasePrice}
+                  onChange={(e) => updateEditProduct('purchasePrice', Number(e.target.value))}
+                  placeholder="Precio de compra"
                 />
+                {editProductErrors.purchasePrice?.length > 0 && (
+                  <p className="text-sm text-red-500">{editProductErrors.purchasePrice.join(", ")}</p>
+                )}
               </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="edit-stock" className="text-right">
-                  Stock
-                </Label>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-stock" className="text-right">
+                Stock
+              </Label>
+              <div className="col-span-3 space-y-2">
                 <Input
                   id="edit-stock"
                   type="number"
-                  className="col-span-3"
-                  value={currentProduct.stock}
-                  onChange={(e) => setCurrentProduct({ ...currentProduct, stock: Number(e.target.value) })}
+                  className={editProductErrors.stock?.length ? "border-red-500" : ""}
+                  value={editProduct.stock}
+                  onChange={(e) => updateEditProduct('stock', Number(e.target.value))}
+                  placeholder="Cantidad en stock"
                 />
+                {editProductErrors.stock?.length > 0 && (
+                  <p className="text-sm text-red-500">{editProductErrors.stock.join(", ")}</p>
+                )}
               </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="edit-category" className="text-right">
-                  Categoría
-                </Label>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-barCode" className="text-right">
+                Código de Barras
+              </Label>
+              <div className="col-span-3 space-y-2">
+                <Input
+                  id="edit-barCode"
+                  className={editProductErrors.barCode?.length ? "border-red-500" : ""}
+                  value={editProduct.barCode}
+                  onChange={(e) => updateEditProduct('barCode', e.target.value)}
+                  placeholder="Código de barras"
+                />
+                {editProductErrors.barCode?.length > 0 && (
+                  <p className="text-sm text-red-500">{editProductErrors.barCode.join(", ")}</p>
+                )}
+              </div>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-category" className="text-right">
+                Categoría
+              </Label>
+              <div className="col-span-3 space-y-2">
                 <Select
-                  value={currentProduct.categoryId}
-                  onValueChange={(value) => setCurrentProduct({ ...currentProduct, categoryId: value })}
+                  value={String(editProduct.category)}
+                  onValueChange={(value) => updateEditProduct('category', Number(value))}
                 >
-                  <SelectTrigger className="col-span-3">
+                  <SelectTrigger className={editProductErrors.category?.length ? "border-red-500" : ""}>
                     <SelectValue placeholder="Seleccionar categoría" />
                   </SelectTrigger>
                   <SelectContent>
-                    {categoriesList.map((category) => (
-                      <SelectItem key={category.id} value={category.id}>
+                    {categories.map((category) => (
+                      <SelectItem key={category.id} value={String(category.id)}>
                         {category.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="edit-barcode" className="text-right">
-                  Código de Barras
-                </Label>
-                <Input
-                  id="edit-barcode"
-                  className="col-span-3"
-                  value={currentProduct.barcode}
-                  onChange={(e) => setCurrentProduct({ ...currentProduct, barcode: e.target.value })}
-                />
+                {editProductErrors.category?.length > 0 && (
+                  <p className="text-sm text-red-500">{editProductErrors.category.join(", ")}</p>
+                )}
               </div>
             </div>
-          )}
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-supplier" className="text-right">
+                Proveedor
+              </Label>
+              <div className="col-span-3 space-y-2">
+                <Select
+                  value={String(editProduct.supplier)}
+                  onValueChange={(value) => updateEditProduct('supplier', Number(value))}
+                >
+                  <SelectTrigger className={editProductErrors.supplier?.length ? "border-red-500" : ""}>
+                    <SelectValue placeholder="Seleccionar proveedor" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {suppliers.map((supplier) => (
+                      <SelectItem key={supplier.id} value={String(supplier.id)}>
+                        {supplier.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {editProductErrors.supplier?.length > 0 && (
+                  <p className="text-sm text-red-500">{editProductErrors.supplier.join(", ")}</p>
+                )}
+              </div>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-description" className="text-right">
+                Descripción
+              </Label>
+              <div className="col-span-3 space-y-2">
+                <Input
+                  id="edit-description"
+                  className={editProductErrors.description?.length ? "border-red-500" : ""}
+                  value={editProduct.description}
+                  onChange={(e) => updateEditProduct('description', e.target.value)}
+                  placeholder="Descripción del producto"
+                />
+                {editProductErrors.description?.length > 0 && (
+                  <p className="text-sm text-red-500">{editProductErrors.description.join(", ")}</p>
+                )}
+              </div>
+            </div>
+          </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsEditProductDialogOpen(false)}>
               Cancelar
             </Button>
-            <Button onClick={handleEditProduct}>Guardar Cambios</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Dialog para editar categoría */}
-      <Dialog open={isEditCategoryDialogOpen} onOpenChange={setIsEditCategoryDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Editar Categoría</DialogTitle>
-            <DialogDescription>Actualiza la información de la categoría.</DialogDescription>
-          </DialogHeader>
-          {currentCategory && (
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="edit-cat-name" className="text-right">
-                  Nombre
-                </Label>
-                <Input
-                  id="edit-cat-name"
-                  className="col-span-3"
-                  value={currentCategory.name}
-                  onChange={(e) => setCurrentCategory({ ...currentCategory, name: e.target.value })}
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="edit-cat-description" className="text-right">
-                  Descripción
-                </Label>
-                <Input
-                  id="edit-cat-description"
-                  className="col-span-3"
-                  value={currentCategory.description}
-                  onChange={(e) => setCurrentCategory({ ...currentCategory, description: e.target.value })}
-                />
-              </div>
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditCategoryDialogOpen(false)}>
-              Cancelar
+            <Button onClick={handleEditProduct} disabled={isLoadingProducts}>
+              {isLoadingProducts ? "Guardando..." : "Guardar"}
             </Button>
-            <Button onClick={handleEditCategory}>Guardar Cambios</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -713,7 +827,13 @@ export default function InventoryPage() {
           <div className="flex flex-col items-center justify-center py-4">
             {currentQRProduct && (
               <div className="p-4 bg-white rounded-lg">
-                <QRCodeCanvas id="product-qr" value={currentQRProduct.id} size={200} level="H" includeMargin={true} />
+                <QRCodeCanvas
+                  id="product-qr"
+                  value={String(currentQRProduct.id)}
+                  size={200}
+                  level="H"
+                  includeMargin={true}
+                />
               </div>
             )}
             <p className="text-sm text-muted-foreground mt-4">

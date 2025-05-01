@@ -1,0 +1,150 @@
+import { Sale, Employee, SaleDetail, Product } from './types'
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+
+interface ApiSale {
+  id: number
+  dateSale: string
+  total: string
+  isDeleted: boolean
+  saleDetails: Array<{
+    id: number
+    quantity: number
+    unitPrice: number
+    product: {
+      id: number
+      name: string
+      price: string
+    }
+  }>
+  user: {
+    id: number
+    name: string
+  }
+}
+
+const mapApiSaleToSale = (apiSale: ApiSale): Sale => {
+  return {
+    id: apiSale.id,
+    date: apiSale.dateSale,
+    total: parseFloat(apiSale.total),
+    status: apiSale.isDeleted ? 'cancelled' : 'completed',
+    employeeId: apiSale.user.id,
+    details: apiSale.saleDetails.map(detail => ({
+      id: detail.id,
+      saleId: apiSale.id,
+      productId: detail.product.id,
+      quantity: detail.quantity,
+      unitPrice: detail.unitPrice,
+      product: detail.product
+    }))
+  }
+}
+
+const getAuthHeaders = () => {
+  const token = localStorage.getItem('token')
+  if (!token) {
+    console.warn('No se encontró token de autenticación')
+  }
+  return {
+    'Content-Type': 'application/json',
+    'Authorization': token ? `Bearer ${token}` : ''
+  }
+}
+
+export const SalesService = {
+  async getSales(): Promise<Sale[]> {
+    try {
+      console.log('Intentando obtener ventas desde:', `${API_URL}/sales`)
+      const response = await fetch(`${API_URL}/sales`, {
+        headers: getAuthHeaders()
+      })
+      
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('401: No autorizado - Por favor, inicia sesión nuevamente')
+        }
+        const errorData = await response.json()
+        throw new Error(errorData.message || 'No se pudieron cargar las ventas')
+      }
+
+      const data: ApiSale[] = await response.json()
+      console.log('Respuesta del servidor:', { status: response.status, data })
+      
+      return data.map(mapApiSaleToSale)
+    } catch (error) {
+      console.error('Error al obtener ventas:', error)
+      throw error
+    }
+  },
+
+  async getSaleDetails(saleId: number): Promise<SaleDetail[]> {
+    try {
+      console.log('Intentando obtener detalles de venta:', saleId)
+      const response = await fetch(`${API_URL}/sales/${saleId}`, {
+        headers: getAuthHeaders()
+      })
+      
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('401: No autorizado - Por favor, inicia sesión nuevamente')
+        }
+        const errorData = await response.json()
+        throw new Error(errorData.message || 'No se pudieron cargar los detalles de la venta')
+      }
+
+      const data: ApiSale = await response.json()
+      console.log('Respuesta del servidor (detalles):', { status: response.status, data })
+      
+      const sale = mapApiSaleToSale(data)
+      return sale.details || []
+    } catch (error) {
+      console.error('Error al obtener detalles de venta:', error)
+      throw error
+    }
+  },
+
+  async getProduct(productId: number): Promise<Product> {
+    try {
+      const response = await fetch(`${API_URL}/products/${productId}`, {
+        headers: getAuthHeaders()
+      })
+      
+      const data = await response.json()
+      
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('401: No autorizado - Por favor, inicia sesión nuevamente')
+        }
+        throw new Error(data.message || 'No se pudo cargar el producto')
+      }
+      
+      return data
+    } catch (error) {
+      console.error('Error al obtener producto:', error)
+      throw error
+    }
+  },
+
+  async getEmployees(): Promise<Employee[]> {
+    try {
+      const response = await fetch(`${API_URL}/employees`, {
+        headers: getAuthHeaders()
+      })
+      
+      const data = await response.json()
+      
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('401: No autorizado - Por favor, inicia sesión nuevamente')
+        }
+        throw new Error(data.message || 'No se pudieron cargar los empleados')
+      }
+      
+      return data
+    } catch (error) {
+      console.error('Error al obtener empleados:', error)
+      throw error
+    }
+  }
+} 
