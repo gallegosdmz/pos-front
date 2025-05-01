@@ -110,21 +110,16 @@ export default function InventoryPage() {
   }, [loadProducts, loadCategories, loadSuppliers])
 
   const handleAddProduct = async () => {
-    console.log('Validando producto:', newProduct)
     if (!isNewProductValid()) {
-      console.log('Validación fallida')
       return;
     }
     
     try {
-      console.log('Intentando crear producto:', newProduct)
-      const response = await createProduct(newProduct)
-      console.log('Producto creado:', response)
+      await createProduct(newProduct)
       await loadProducts() // Recargar la lista de productos
       setIsAddProductDialogOpen(false)
       resetNewProductForm()
     } catch (error) {
-      console.error('Error al crear producto:', error)
       // Error ya manejado por el hook
     }
   }
@@ -163,17 +158,28 @@ export default function InventoryPage() {
   }
 
   const handleEditCategory = async () => {
-    if (!isEditCategoryValid() || !currentCategory) return;
+    if (!isEditCategoryValid() || !currentCategory) {
+      return;
+    }
 
     try {
-      await updateCategory(currentCategory, editCategory)
-      setIsEditCategoryDialogOpen(false)
-      setCurrentCategory(null)
-      resetEditCategoryForm()
-    } catch {
-      // Error ya manejado por el hook
+      await updateCategory(currentCategory, editCategory);
+      await loadCategories(); // Recargar las categorías después de la actualización
+      setIsEditCategoryDialogOpen(false);
+      setCurrentCategory(null);
+      resetEditCategoryForm();
+      toast({
+        title: "Éxito",
+        description: "Categoría actualizada correctamente",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "No se pudo actualizar la categoría",
+        variant: "destructive",
+      });
     }
-  }
+  };
 
   const handleDeleteCategory = async (id: string) => {
     // Verificar si hay productos que usan esta categoría
@@ -211,11 +217,22 @@ export default function InventoryPage() {
   }
 
   const openEditCategoryDialog = (category: Category) => {
-    setCurrentCategory(String(category.id))
-    setEditCategoryFormData({
-      name: category.name
-    })
-    setIsEditCategoryDialogOpen(true)
+    try {
+      setEditCategoryFormData({
+        name: category.name
+      });
+      
+      setCurrentCategory(String(category.id));
+      
+      setIsEditCategoryDialogOpen(true);
+      
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "No se pudo abrir el diálogo de edición",
+        variant: "destructive",
+      });
+    }
   }
 
   const openQRDialog = (product: Product) => {
@@ -810,6 +827,63 @@ export default function InventoryPage() {
             </Button>
             <Button onClick={handleEditProduct} disabled={isLoadingProducts}>
               {isLoadingProducts ? "Guardando..." : "Guardar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog para editar categoría */}
+      <Dialog 
+        open={isEditCategoryDialogOpen} 
+        onOpenChange={(open) => {
+          setIsEditCategoryDialogOpen(open);
+          if (!open) {
+            setCurrentCategory(null);
+            resetEditCategoryForm();
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar Categoría</DialogTitle>
+            <DialogDescription>Actualiza el nombre de la categoría.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-category-name" className="text-right">
+                Nombre
+              </Label>
+              <div className="col-span-3 space-y-2">
+                <Input
+                  id="edit-category-name"
+                  className={editCategoryErrors.name?.length ? "border-red-500" : ""}
+                  value={editCategory.name}
+                  onChange={(e) => {
+                    updateEditCategory('name', e.target.value);
+                  }}
+                  placeholder="Nombre de la categoría"
+                />
+                {editCategoryErrors.name?.length > 0 && (
+                  <p className="text-sm text-red-500">{editCategoryErrors.name.join(", ")}</p>
+                )}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setIsEditCategoryDialogOpen(false);
+              setCurrentCategory(null);
+              resetEditCategoryForm();
+            }}>
+              Cancelar
+            </Button>
+            <Button 
+              onClick={() => {
+                handleEditCategory();
+              }} 
+              disabled={isLoadingCategories}
+            >
+              {isLoadingCategories ? "Guardando..." : "Guardar"}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -175,9 +175,15 @@ export default function ExpensesPage() {
             <Download className="mr-2 h-4 w-4" />
             Exportar
           </Button>
-          <Dialog open={isAddDialogOpen} onOpenChange={handleDialogClose}>
+          <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
+            if (!open) {
+              handleDialogClose()
+            } else {
+              setIsAddDialogOpen(true)
+            }
+          }}>
             <DialogTrigger asChild>
-              <Button>
+              <Button onClick={() => setIsAddDialogOpen(true)}>
                 <Plus className="mr-2 h-4 w-4" />
                 Agregar Gasto
               </Button>

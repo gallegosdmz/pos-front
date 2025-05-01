@@ -30,21 +30,21 @@ export const useProducts = () => {
       setIsLoading(true)
       const dataToSend = {
         name: productData.name,
-        price: productData.price,
-        stock: productData.stock,
-        purchasePrice: productData.purchasePrice,
+        price: Number(productData.price),
+        stock: Number(productData.stock),
+        purchasePrice: Number(productData.purchasePrice),
         barCode: productData.barCode,
-        category: productData.category,
-        supplier: productData.supplier,
+        category: Number(productData.category),
+        supplier: Number(productData.supplier),
         description: productData.description
       }
-      const response = await ProductService.createProduct(dataToSend)
-      setProducts(prev => [...prev, response])
+      const createResponse = await ProductService.createProduct(dataToSend)
+      setProducts(prev => [...prev, createResponse])
       toast({
         title: "Éxito",
         description: "Producto creado correctamente",
       })
-      return response
+      return createResponse
     } catch (error: any) {
       toast({
         title: "Error",
@@ -58,17 +58,25 @@ export const useProducts = () => {
   }, [toast])
 
   const updateProduct = useCallback(async (id: number, productData: ProductFormValues) => {
-    console.log('Intentando actualizar producto:', { id, productData })
     try {
       setIsLoading(true)
-      const response = await ProductService.updateProduct(id, productData)
-      console.log('Respuesta del servicio:', response)
-      setProducts(prev => prev.map(prod => prod.id === id ? response : prod))
+      const dataToSend = {
+        name: productData.name,
+        price: Number(productData.price),
+        stock: Number(productData.stock),
+        purchasePrice: Number(productData.purchasePrice),
+        barCode: productData.barCode,
+        category: Number(productData.category),
+        supplier: Number(productData.supplier),
+        description: productData.description
+      }
+      const updateResponse = await ProductService.updateProduct(id, dataToSend)
+      setProducts(prev => prev.map(prod => prod.id === id ? updateResponse : prod))
       toast({
         title: "Éxito",
         description: "Producto actualizado correctamente",
       })
-      return response
+      return updateResponse
     } catch (error: any) {
       console.error('Error al actualizar producto:', error)
       toast({
@@ -141,9 +149,15 @@ export const useProductForm = (initialData?: ProductFormValues) => {
 
   const updateField = (field: keyof ProductFormValues, value: any) => {
     let processedValue = value;
+    
     if (['price', 'stock', 'purchasePrice', 'category', 'supplier'].includes(field)) {
       if (value === '' || value === null || value === undefined) {
         processedValue = 0;
+      } else if (typeof value === 'string') {
+        processedValue = parseFloat(value.replace(/,/g, ''));
+        if (isNaN(processedValue)) {
+          processedValue = 0;
+        }
       } else {
         processedValue = Number(value);
         if (isNaN(processedValue)) {
@@ -170,6 +184,14 @@ export const useProductForm = (initialData?: ProductFormValues) => {
   const validateField = (field: keyof ProductFormValues, value: any) => {
     const newErrors: string[] = [];
 
+    const parseNumericValue = (val: any): number => {
+      if (typeof val === 'string') {
+        const parsed = parseFloat(val.replace(/,/g, ''));
+        return isNaN(parsed) ? 0 : parsed;
+      }
+      return typeof val === 'number' ? val : 0;
+    };
+
     switch (field) {
       case 'name':
         if (!value || !value.trim()) {
@@ -181,23 +203,29 @@ export const useProductForm = (initialData?: ProductFormValues) => {
         }
         break;
 
-      case 'price':
-        if (typeof value !== 'number' || isNaN(value) || value <= 0) {
-          newErrors.push("El precio debe ser mayor a 0");
+      case 'price': {
+        const numericValue = parseNumericValue(value);
+        if (numericValue < 0) {
+          newErrors.push("El precio no puede ser negativo");
         }
         break;
+      }
 
-      case 'stock':
-        if (typeof value !== 'number' || isNaN(value) || value < 0) {
+      case 'stock': {
+        const numericValue = parseNumericValue(value);
+        if (numericValue < 0) {
           newErrors.push("El stock no puede ser negativo");
         }
         break;
+      }
 
-      case 'purchasePrice':
-        if (typeof value !== 'number' || isNaN(value) || value <= 0) {
-          newErrors.push("El precio de compra debe ser mayor a 0");
+      case 'purchasePrice': {
+        const numericValue = parseNumericValue(value);
+        if (numericValue < 0) {
+          newErrors.push("El precio de compra no puede ser negativo");
         }
         break;
+      }
 
       case 'barCode':
         if (!value || !value.trim()) {
@@ -208,13 +236,15 @@ export const useProductForm = (initialData?: ProductFormValues) => {
         break;
 
       case 'category':
-        if (typeof value !== 'number' || isNaN(value) || value <= 0) {
+        const categoryValue = parseNumericValue(value);
+        if (!categoryValue || categoryValue === 0) {
           newErrors.push("La categoría es requerida");
         }
         break;
 
       case 'supplier':
-        if (typeof value !== 'number' || isNaN(value) || value <= 0) {
+        const supplierValue = parseNumericValue(value);
+        if (!supplierValue || supplierValue === 0) {
           newErrors.push("El proveedor es requerido");
         }
         break;
@@ -252,7 +282,6 @@ export const useProductForm = (initialData?: ProductFormValues) => {
   const isValid = () => {
     let isFormValid = true;
     const fields: (keyof ProductFormValues)[] = ['name', 'price', 'stock', 'purchasePrice', 'barCode', 'category', 'supplier', 'description'];
-    console.log('Validando formulario:', formData)
 
     fields.forEach(field => {
       const fieldIsValid = validateField(field, formData[field]);
@@ -273,7 +302,6 @@ export const useProductForm = (initialData?: ProductFormValues) => {
       });
     }
 
-    console.log('Resultado de validación:', { isFormValid, errors })
     return isFormValid;
   }
 
