@@ -19,6 +19,8 @@ import { SalesService } from "./service"
 import type { Sale, SaleDetail } from "./types"
 import { Loader2 } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { SalesTable } from "./SalesTable"
+import { SaleDetailsDialog } from "./SaleDetailsDialog"
 
 // Función de formato de fecha
 const formatDate = (date: string | Date) => {
@@ -204,100 +206,26 @@ export default function SalesPage() {
           </Button>
         </CardHeader>
         <CardContent>
-          {isLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>ID</TableHead>
-                  <TableHead>Fecha</TableHead>
-                  <TableHead>Total</TableHead>
-                  <TableHead>Estado</TableHead>
-                  <TableHead className="w-[100px]">Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredSales.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center">
-                      No se encontraron ventas
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredSales.map((sale: Sale) => (
-                    <TableRow key={`sale-${sale.id}`}>
-                      <TableCell className="font-medium">{sale.id}</TableCell>
-                      <TableCell>{formatDate(sale.date)}</TableCell>
-                      <TableCell>{formatCurrency(sale.total)}</TableCell>
-                      <TableCell>
-                        <Badge variant={sale.status === "completed" ? "default" : "destructive"}>
-                          {sale.status === "completed" ? "Completada" : "Cancelada"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => setSelectedSaleId(sale.id)}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          )}
+          <SalesTable
+            sales={sales}
+            isLoading={isLoading}
+            filteredSales={filteredSales}
+            formatDate={formatDate}
+            formatCurrency={formatCurrency}
+            setSelectedSaleId={setSelectedSaleId}
+          />
         </CardContent>
       </Card>
 
-      <Dialog open={!!selectedSaleId} onOpenChange={() => setSelectedSaleId(null)}>
-        <DialogContent className="max-w-3xl">
-          <DialogHeader>
-            <DialogTitle>Detalles de la Venta #{selectedSaleId}</DialogTitle>
-          </DialogHeader>
-          {isLoadingDetails ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Producto</TableHead>
-                    <TableHead>Cantidad</TableHead>
-                    <TableHead>Precio Unitario</TableHead>
-                    <TableHead>Subtotal</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {saleDetails.map((detail: SaleDetail) => (
-                    <TableRow key={detail.id}>
-                      <TableCell>{detail.product?.name || `Producto ${detail.productId}`}</TableCell>
-                      <TableCell>{detail.quantity}</TableCell>
-                      <TableCell>{formatCurrency(detail.unitPrice)}</TableCell>
-                      <TableCell>{formatCurrency(detail.quantity * detail.unitPrice)}</TableCell>
-                    </TableRow>
-                  ))}
-                  <TableRow>
-                    <TableCell colSpan={3} className="text-right font-medium">
-                      Total:
-                    </TableCell>
-                    <TableCell className="font-medium">
-                      {formatCurrency(saleDetails.reduce((sum, detail) => sum + (detail.quantity * detail.unitPrice), 0))}
-                    </TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      <SaleDetailsDialog
+        open={!!selectedSaleId}
+        onOpenChange={() => setSelectedSaleId(null)}
+        selectedSaleId={selectedSaleId}
+        isLoadingDetails={isLoadingDetails}
+        saleDetails={saleDetails}
+        formatCurrency={formatCurrency}
+        formatDate={formatDate}
+      />
     </motion.div>
   )
 }

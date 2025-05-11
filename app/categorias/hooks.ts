@@ -29,16 +29,16 @@ export const useCategories = () => {
     try {
       setIsLoading(true)
       const response = await CategoryService.createCategory(categoryData)
-      setCategories(prev => [...prev, response])
       toast({
-        title: "Éxito",
-        description: "Categoría creada correctamente",
+        title: "¡Categoría agregada con éxito!",
+        description: response.message || "La categoría fue creada correctamente.",
+        variant: "default",
       })
       return response
     } catch (error: any) {
       toast({
-        title: "Error",
-        description: error.message,
+        title: "Error al crear categoría",
+        description: error.message || "Ocurrió un error desconocido al crear la categoría.",
         variant: "destructive",
       })
       throw error
@@ -51,16 +51,16 @@ export const useCategories = () => {
     try {
       setIsLoading(true)
       const response = await CategoryService.updateCategory(id, categoryData)
-      setCategories(prev => prev.map(cat => String(cat.id) === id ? response : cat))
       toast({
-        title: "Éxito",
-        description: "Categoría actualizada correctamente",
+        title: "¡Categoría actualizada con éxito!",
+        description: response.message || "La categoría fue actualizada correctamente.",
+        variant: "default",
       })
       return response
     } catch (error: any) {
       toast({
-        title: "Error",
-        description: error.message,
+        title: "Error al actualizar categoría",
+        description: error.message || "Ocurrió un error desconocido al actualizar la categoría.",
         variant: "destructive",
       })
       throw error
@@ -73,16 +73,16 @@ export const useCategories = () => {
     try {
       setIsLoading(true)
       const response = await CategoryService.deleteCategory(id)
-      setCategories(prev => prev.filter(cat => String(cat.id) !== id))
       toast({
-        title: "Éxito",
-        description: "Categoría eliminada correctamente",
+        title: "¡Categoría eliminada con éxito!",
+        description: response.message || "La categoría fue eliminada correctamente.",
+        variant: "default",
       })
       return response
     } catch (error: any) {
       toast({
-        title: "Error",
-        description: error.message,
+        title: "Error al eliminar categoría",
+        description: error.message || "Ocurrió un error desconocido al eliminar la categoría.",
         variant: "destructive",
       })
       throw error

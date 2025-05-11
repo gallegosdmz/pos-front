@@ -1,6 +1,5 @@
 import { Employee, EmployeeFormValues, EmployeeResponse } from './types';
-
-const API_URL = '/api';
+import { API_URL } from '../../lib/utils';
 
 const getAuthHeaders = () => {
   const token = localStorage.getItem('token');
@@ -32,7 +31,6 @@ export const EmployeeService = {
   },
 
   async createEmployee(employeeData: EmployeeFormValues): Promise<EmployeeResponse> {
-    console.log('Datos a enviar:', employeeData);
     const response = await fetch(`${API_URL}/users`, {
       method: 'POST',
       headers: getAuthHeaders(),
@@ -40,7 +38,6 @@ export const EmployeeService = {
     });
     
     const data = await response.json();
-    console.log('Respuesta del servidor:', data);
     
     if (!response.ok) {
       if (response.status === 401) {

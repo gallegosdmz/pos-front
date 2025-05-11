@@ -1,6 +1,5 @@
 import { Product, ProductFormValues, ProductResponse } from './types'
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+import { API_URL } from '../../lib/utils'
 
 const getAuthHeaders = () => {
   const token = localStorage.getItem('token')
@@ -12,13 +11,11 @@ const getAuthHeaders = () => {
 
 export const ProductService = {
   async getProducts(): Promise<Product[]> {
-    console.log('Obteniendo productos del API')
     const response = await fetch(`${API_URL}/products`, {
       headers: getAuthHeaders()
     })
     
     const data = await response.json()
-    console.log('Respuesta getProducts:', data)
     
     if (!response.ok) {
       if (response.status === 401) {

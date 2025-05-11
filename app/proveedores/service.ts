@@ -1,6 +1,5 @@
 import { Supplier, SupplierFormValues, SupplierResponse } from './types'
-
-const API_URL = '/api'
+import { API_URL } from '../../lib/utils'
 
 const getAuthHeaders = () => {
   const token = localStorage.getItem('token')

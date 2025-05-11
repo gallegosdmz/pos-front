@@ -99,7 +99,7 @@ export default function LoginPage() {
     setIsLoading(true)
 
     try {
-      const response = await fetch("http://localhost:3000/api/users/login", {
+      const response = await fetch("http://82.180.133.39/api/auth/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -112,6 +112,7 @@ export default function LoginPage() {
       }
 
       const data = await response.json()
+      console.log('Response completo del login:', data)
       localStorage.setItem("token", data.token)
       
       toast({
@@ -119,8 +120,13 @@ export default function LoginPage() {
         description: "Bienvenido al sistema",
       })
 
-      router.push("/dashboard")
+      if (data.role === 'admin') {
+        router.push("/admin/businesses")
+      } else {
+        router.push("/dashboard")
+      }
     } catch (error: any) {
+      console.error('Error en login:', error)
       toast({
         title: "Error",
         description: error.message || "Ocurrió un error al iniciar sesión",
@@ -177,24 +183,6 @@ export default function LoginPage() {
             <CardFooter className="flex flex-col gap-2">
               <Button className="w-full" type="submit" disabled={isLoading}>
                 {isLoading ? "Iniciando sesión..." : "Iniciar Sesión"}
-              </Button>
-              <Button 
-                type="button" 
-                variant="secondary" 
-                className="w-full" 
-                onClick={handleQuickAdminLogin}
-                disabled={isLoading}
-              >
-                Acceso Rápido Admin
-              </Button>
-              <Button 
-                type="button" 
-                variant="outline" 
-                className="w-full" 
-                onClick={handleCreateFirstAdmin}
-                disabled={isCreatingAdmin}
-              >
-                {isCreatingAdmin ? "Creando administrador..." : "Crear Primer Administrador"}
               </Button>
             </CardFooter>
           </form>

@@ -186,7 +186,7 @@ export const useEmployeeForm = (initialData?: EmployeeFormValues) => {
       case 'role':
         if (!value) {
           newErrors.push("El rol es requerido");
-        } else if (!['admin', 'cajero'].includes(value)) {
+        } else if (!['Admin', 'Cajero'].includes(value)) {
           newErrors.push("El rol debe ser Administrador o Cajero");
         }
         break;

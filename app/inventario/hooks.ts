@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react'
 import { Product, ProductFormValues } from './types'
+import type { Category } from '@/app/categorias/types'
 import { ProductService } from './service'
 import { useToast } from '@/components/ui/use-toast'
 
@@ -25,7 +26,11 @@ export const useProducts = () => {
     }
   }, [toast])
 
-  const createProduct = useCallback(async (productData: ProductFormValues) => {
+  const createProduct = useCallback(async (
+    productData: ProductFormValues,
+    categories: Category[] = [],
+    suppliers: { id: number; name: string }[] = []
+  ) => {
     try {
       setIsLoading(true)
       const dataToSend = {
@@ -39,12 +44,21 @@ export const useProducts = () => {
         description: productData.description
       }
       const createResponse = await ProductService.createProduct(dataToSend)
-      setProducts(prev => [...prev, createResponse])
+      const categoryId = typeof createResponse.category === 'object' ? createResponse.category.id : createResponse.category;
+      const supplierId = typeof createResponse.supplier === 'object' ? createResponse.supplier.id : createResponse.supplier;
+      const categoryObj = Array.isArray(categories) ? categories.find((cat: { id: number }) => cat.id === categoryId) || { id: categoryId, name: '' } : createResponse.category;
+      const supplierObj = Array.isArray(suppliers) ? suppliers.find((sup: { id: number }) => sup.id === supplierId) || { id: supplierId, name: '' } : createResponse.supplier;
+      const enrichedProduct = {
+        ...createResponse,
+        category: categoryObj,
+        supplier: supplierObj
+      }
+      setProducts(prev => [...prev, enrichedProduct])
       toast({
         title: "Éxito",
         description: "Producto creado correctamente",
       })
-      return createResponse
+      return enrichedProduct
     } catch (error: any) {
       toast({
         title: "Error",

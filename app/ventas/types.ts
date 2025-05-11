@@ -5,6 +5,8 @@ export interface Sale {
   total: number
   status: 'completed' | 'cancelled'
   details?: SaleDetail[]
+  customer?: string
+  paymentMethod: string
 }
 
 export interface SaleDetail {
@@ -16,7 +18,7 @@ export interface SaleDetail {
   product?: {
     id: number
     name: string
-    price: string
+    price: number
   }
 }
 

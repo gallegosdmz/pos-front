@@ -1,6 +1,5 @@
 import { Expense, ExpenseFormValues, ExpenseResponse } from './types'
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+import { API_URL } from '../../lib/utils'
 
 const getAuthHeaders = () => {
   const token = localStorage.getItem('token')

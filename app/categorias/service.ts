@@ -1,6 +1,5 @@
 import { Category, CategoryFormValues, CategoryResponse } from './types'
-
-const API_URL = '/api'
+import { API_URL } from '../../lib/utils'
 
 const getAuthHeaders = () => {
   const token = localStorage.getItem('token')
@@ -41,6 +40,12 @@ export const CategoryService = {
     const data = await response.json()
     
     if (!response.ok) {
+      console.log('Error al crear categoría:', {
+        status: response.status,
+        statusText: response.statusText,
+        data,
+        categoryData
+      })
       if (response.status === 401) {
         throw new Error('401: No autorizado - Por favor, inicia sesión nuevamente')
       }

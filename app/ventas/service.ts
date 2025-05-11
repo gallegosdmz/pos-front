@@ -1,6 +1,5 @@
 import { Sale, Employee, SaleDetail, Product } from './types'
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+import { API_URL } from '../../lib/utils'
 
 interface ApiSale {
   id: number
@@ -36,16 +35,18 @@ const mapApiSaleToSale = (apiSale: ApiSale): Sale => {
       productId: detail.product.id,
       quantity: detail.quantity,
       unitPrice: detail.unitPrice,
-      product: detail.product
-    }))
+      product: {
+        ...detail.product,
+        price: parseFloat(detail.product.price)
+      }
+    })),
+    customer: apiSale.user.name,
+    paymentMethod: 'cash' 
   }
 }
 
 const getAuthHeaders = () => {
   const token = localStorage.getItem('token')
-  if (!token) {
-    console.warn('No se encontró token de autenticación')
-  }
   return {
     'Content-Type': 'application/json',
     'Authorization': token ? `Bearer ${token}` : ''
@@ -55,7 +56,6 @@ const getAuthHeaders = () => {
 export const SalesService = {
   async getSales(): Promise<Sale[]> {
     try {
-      console.log('Intentando obtener ventas desde:', `${API_URL}/sales`)
       const response = await fetch(`${API_URL}/sales`, {
         headers: getAuthHeaders()
       })
@@ -69,8 +69,6 @@ export const SalesService = {
       }
 
       const data: ApiSale[] = await response.json()
-      console.log('Respuesta del servidor:', { status: response.status, data })
-      
       return data.map(mapApiSaleToSale)
     } catch (error) {
       console.error('Error al obtener ventas:', error)
@@ -80,7 +78,6 @@ export const SalesService = {
 
   async getSaleDetails(saleId: number): Promise<SaleDetail[]> {
     try {
-      console.log('Intentando obtener detalles de venta:', saleId)
       const response = await fetch(`${API_URL}/sales/${saleId}`, {
         headers: getAuthHeaders()
       })
@@ -94,8 +91,6 @@ export const SalesService = {
       }
 
       const data: ApiSale = await response.json()
-      console.log('Respuesta del servidor (detalles):', { status: response.status, data })
-      
       const sale = mapApiSaleToSale(data)
       return sale.details || []
     } catch (error) {

@@ -36,6 +36,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { ExpenseTable } from "./ExpenseTable"
+import { AddExpenseDialog } from "./AddExpenseDialog"
+import { EditExpenseDialog } from "./EditExpenseDialog"
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat('es-MX', {
@@ -175,61 +178,24 @@ export default function ExpensesPage() {
             <Download className="mr-2 h-4 w-4" />
             Exportar
           </Button>
-          <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
-            if (!open) {
-              handleDialogClose()
-            } else {
-              setIsAddDialogOpen(true)
-            }
-          }}>
-            <DialogTrigger asChild>
-              <Button onClick={() => setIsAddDialogOpen(true)}>
-                <Plus className="mr-2 h-4 w-4" />
-                Agregar Gasto
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>{isEditMode ? 'Editar Gasto' : 'Registrar Nuevo Gasto'}</DialogTitle>
-                <DialogDescription>
-                  {isEditMode ? 'Modifica la información del gasto.' : 'Ingresa la información del nuevo gasto.'}
-                </DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="concept" className="text-right">
-                    Concepto
-                  </Label>
-                  <Input
-                    id="concept"
-                    className="col-span-3"
-                    value={formData.concept}
-                    onChange={(e) => updateField('concept', e.target.value)}
-                  />
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="total" className="text-right">
-                    Total
-                  </Label>
-                  <Input
-                    id="total"
-                    type="number"
-                    className="col-span-3"
-                    value={formData.total}
-                    onChange={(e) => updateField('total', Number(e.target.value))}
-                  />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={handleDialogClose}>
-                  Cancelar
-                </Button>
-                <Button onClick={handleAddOrUpdateExpense}>
-                  {isEditMode ? 'Guardar Cambios' : 'Guardar'}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+          <AddExpenseDialog
+            open={isAddDialogOpen && !isEditMode}
+            setOpen={setIsAddDialogOpen}
+            formData={formData}
+            updateField={updateField}
+            isLoading={isLoading}
+            onSubmit={handleAddOrUpdateExpense}
+            resetForm={resetForm}
+          />
+          <EditExpenseDialog
+            open={isAddDialogOpen && isEditMode}
+            setOpen={setIsAddDialogOpen}
+            formData={formData}
+            updateField={updateField}
+            isLoading={isLoading}
+            onSubmit={handleAddOrUpdateExpense}
+            resetForm={resetForm}
+          />
         </div>
       </div>
 
@@ -243,58 +209,14 @@ export default function ExpensesPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Concepto</TableHead>
-                <TableHead>Total</TableHead>
-                <TableHead className="w-[100px]">Acciones</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <TableRow>
-                  <TableCell colSpan={3} className="text-center">
-                    Cargando gastos...
-                  </TableCell>
-                </TableRow>
-              ) : expenses.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={3} className="text-center">
-                    No se encontraron gastos
-                  </TableCell>
-                </TableRow>
-              ) : (
-                expenses.map((expense: Expense) => (
-                  <TableRow key={expense.id}>
-                    <TableCell className="font-medium">{expense.concept}</TableCell>
-                    <TableCell>{formatCurrency(parseExpenseTotal(expense.total))}</TableCell>
-                    <TableCell>
-                      <div className="flex space-x-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleEditClick(expense)}
-                        >
-                          <Edit className="h-4 w-4" />
-                          <span className="sr-only">Editar</span>
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDeleteClick(expense.id)}
-                          disabled={isLoading}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                          <span className="sr-only">Eliminar</span>
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+          <ExpenseTable
+            expenses={expenses}
+            isLoading={isLoading}
+            formatCurrency={formatCurrency}
+            parseExpenseTotal={parseExpenseTotal}
+            handleEditClick={handleEditClick}
+            handleDeleteClick={handleDeleteClick}
+          />
         </CardContent>
       </Card>
 
