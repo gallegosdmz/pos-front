@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react'
 import { Product, ProductFormValues } from './types'
 import type { Category } from '@/app/categorias/types'
 import { ProductService } from './service'
-import { useToast } from '@/components/ui/use-toast'
+import { useToast } from '@/hooks/use-toast'
 
 export const useProducts = () => {
   const { toast } = useToast()
@@ -41,24 +41,21 @@ export const useProducts = () => {
         barCode: productData.barCode,
         category: Number(productData.category),
         supplier: Number(productData.supplier),
-        description: productData.description
+        description: productData.description,
+        expense: {
+          concept: '',
+          expCategory: 'Suministros',
+          method: productData.method,
+          total: Number(productData.total)
+        }
       }
       const createResponse = await ProductService.createProduct(dataToSend)
-      const categoryId = typeof createResponse.category === 'object' ? createResponse.category.id : createResponse.category;
-      const supplierId = typeof createResponse.supplier === 'object' ? createResponse.supplier.id : createResponse.supplier;
-      const categoryObj = Array.isArray(categories) ? categories.find((cat: { id: number }) => cat.id === categoryId) || { id: categoryId, name: '' } : createResponse.category;
-      const supplierObj = Array.isArray(suppliers) ? suppliers.find((sup: { id: number }) => sup.id === supplierId) || { id: supplierId, name: '' } : createResponse.supplier;
-      const enrichedProduct = {
-        ...createResponse,
-        category: categoryObj,
-        supplier: supplierObj
-      }
-      setProducts(prev => [...prev, enrichedProduct])
       toast({
         title: "Éxito",
         description: "Producto creado correctamente",
       })
-      return enrichedProduct
+      await loadProducts()
+      return createResponse
     } catch (error: any) {
       toast({
         title: "Error",
@@ -69,7 +66,7 @@ export const useProducts = () => {
     } finally {
       setIsLoading(false)
     }
-  }, [toast])
+  }, [toast, loadProducts])
 
   const updateProduct = useCallback(async (id: number, productData: ProductFormValues) => {
     try {
@@ -149,12 +146,12 @@ export const useProductForm = (initialData?: ProductFormValues) => {
   const [formData, setFormData] = useState<ProductFormValues>(
     initialData || {
       name: "",
-      price: 0,
-      stock: 0,
-      purchasePrice: 0,
+      price: "",
+      stock: "",
+      purchasePrice: "",
       barCode: "",
-      category: 0,
-      supplier: 0,
+      category: "",
+      supplier: "",
       description: ""
     }
   )
@@ -281,12 +278,12 @@ export const useProductForm = (initialData?: ProductFormValues) => {
   const resetForm = () => {
     setFormData({
       name: "",
-      price: 0,
-      stock: 0,
-      purchasePrice: 0,
+      price: "",
+      stock: "",
+      purchasePrice: "",
       barCode: "",
-      category: 0,
-      supplier: 0,
+      category: "",
+      supplier: "",
       description: ""
     });
     setErrors({});

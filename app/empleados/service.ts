@@ -10,6 +10,7 @@ const getAuthHeaders = () => {
 };
 
 export const EmployeeService = {
+
   async getEmployees(): Promise<Employee[]> {
     const response = await fetch(`${API_URL}/users`, {
       headers: getAuthHeaders()
@@ -34,7 +35,7 @@ export const EmployeeService = {
     const response = await fetch(`${API_URL}/users`, {
       method: 'POST',
       headers: getAuthHeaders(),
-      body: JSON.stringify(employeeData),
+      body: JSON.stringify({ ...employeeData, role: "assistant" }),
     });
     
     const data = await response.json();
@@ -60,7 +61,7 @@ export const EmployeeService = {
     return { ...data, message: 'Empleado creado exitosamente' };
   },
 
-  async updateEmployee(id: string, employeeData: EmployeeFormValues): Promise<EmployeeResponse> {
+  async updateEmployee(id: string, employeeData: EmployeeFormValues ): Promise<EmployeeResponse> {
     const response = await fetch(`${API_URL}/users/${id}`, {
       method: 'PATCH',
       headers: getAuthHeaders(),
@@ -110,5 +111,19 @@ export const EmployeeService = {
     }
     
     return { ...data, message: 'Empleado eliminado exitosamente' };
-  }
+  },
+
+  async changeEmployeePassword(id: string, newPassword: string) {
+    const response = await fetch(`${API_URL}/auth/password-change/${id}`, {
+      method: 'PATCH',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ password: newPassword }),
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.message || 'No se pudo cambiar la contraseña.');
+    }
+    return data;
+  },
+
 }; 

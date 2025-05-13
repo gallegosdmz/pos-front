@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { LayoutDashboard, Users, Package, ShoppingCart, DollarSign, Truck, Menu, X, Moon, Sun } from "lucide-react"
@@ -52,6 +52,42 @@ export default function Sidebar() {
   const pathname = usePathname()
   const [isOpen, setIsOpen] = useState(false)
   const { theme, setTheme } = useTheme()
+  const [isAdmin, setIsAdmin] = useState<boolean | null>(null)
+
+  useEffect(() => {
+    const userStr = typeof window !== 'undefined' ? localStorage.getItem('user') : null
+    if (userStr) {
+      try {
+        const user = JSON.parse(userStr)
+        setIsAdmin(user?.role === 'Admin' || user?.role === 'Administrador')
+      } catch {
+        setIsAdmin(false)
+      }
+    } else {
+      setIsAdmin(false)
+    }
+  }, [])
+
+  if (pathname === "/login" || pathname === "/") {
+    return null;
+  }
+
+  if (isAdmin === null) {
+    return null // No renderizar el sidebar hasta saber el rol
+  }
+
+  const adminNavItems = [
+    {
+      name: "Dashboard Administrador",
+      href: "/admin-dashboard",
+      icon: LayoutDashboard,
+    },
+    {
+      name: "Panel de Administración",
+      href: "/admin-panel",
+      icon: Users,
+    },
+  ]
 
   return (
     <>
@@ -80,14 +116,14 @@ export default function Sidebar() {
             </Button>
           </div>
           <div className="space-y-1">
-            {navItems.map((item) => (
+            {(isAdmin ? adminNavItems : navItems).map((item) => (
               <Link key={item.href} href={item.href} onClick={() => setIsOpen(false)}>
                 <div
                   className={cn(
                     "flex items-center rounded-lg px-3 py-2 text-sm font-medium transition-all",
                     pathname === item.href
                       ? "bg-primary text-primary-foreground"
-                      : item.highlight
+                      : 'highlight' in item && item.highlight
                         ? "bg-primary/10 text-primary hover:bg-primary/20"
                         : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
                   )}
@@ -121,14 +157,14 @@ export default function Sidebar() {
             </Button>
           </div>
           <nav className="flex-1 space-y-1 p-4">
-            {navItems.map((item) => (
+            {(isAdmin ? adminNavItems : navItems).map((item) => (
               <Link key={item.href} href={item.href}>
                 <div
                   className={cn(
                     "flex items-center rounded-lg px-3 py-2 text-sm font-medium transition-all",
                     pathname === item.href
                       ? "bg-primary text-primary-foreground"
-                      : item.highlight
+                      : 'highlight' in item && item.highlight
                         ? "bg-primary/10 text-primary hover:bg-primary/20"
                         : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
                   )}

@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react'
 import { Supplier, SupplierFormValues } from './types'
 import { SupplierService } from './service'
-import { useToast } from '@/components/ui/use-toast'
+import { useToast } from '@/hooks/use-toast'
 
 export const useSuppliers = () => {
   const { toast } = useToast()
@@ -29,11 +29,11 @@ export const useSuppliers = () => {
     try {
       setIsLoading(true)
       const response = await SupplierService.createSupplier(supplierData)
-      setSuppliers(prev => [...prev, response])
       toast({
         title: "Éxito",
         description: "Proveedor creado correctamente",
       })
+      await loadSuppliers()
       return response
     } catch (error: any) {
       toast({
@@ -45,7 +45,7 @@ export const useSuppliers = () => {
     } finally {
       setIsLoading(false)
     }
-  }, [toast])
+  }, [toast, loadSuppliers])
 
   const updateSupplier = useCallback(async (id: number, supplierData: SupplierFormValues) => {
     try {
@@ -174,7 +174,7 @@ export const useSupplierForm = (initialData?: SupplierFormValues) => {
     return newErrors.length === 0;
   };
 
-  const updateField = (field: keyof SupplierFormValues, value: any) => {
+  const updateField: (field: keyof SupplierFormValues, value: any) => void = (field, value) => {
     setFormData(prev => ({
       ...prev,
       [field]: value

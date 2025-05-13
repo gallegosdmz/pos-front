@@ -1,28 +1,16 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
-import { Label } from "@/components/ui/label"
-import { Badge } from "@/components/ui/badge"
-import { Edit, Search, Trash2, Building2 } from "lucide-react"
+import { Search} from "lucide-react"
 import { motion } from "framer-motion"
 import { Supplier } from "./types"
 import { useSuppliers, useSupplierForm } from "./hooks"
 import { SupplierTable } from "./SupplierTable"
 import { AddSupplierDialog } from "./AddSupplierDialog"
 import { EditSupplierDialog } from "./EditSupplierDialog"
+import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog"
 
 export default function SuppliersPage() {
   const {
@@ -55,6 +43,8 @@ export default function SuppliersPage() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [currentSupplierId, setCurrentSupplierId] = useState<number | null>(null)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [deletingId, setDeletingId] = useState<number | null>(null)
 
   useEffect(() => {
     loadSuppliers()
@@ -102,6 +92,19 @@ export default function SuppliersPage() {
     setIsEditDialogOpen(true)
   }
 
+  const handleAskDeleteSupplier = (id: number) => {
+    setDeletingId(id)
+    setIsDeleteDialogOpen(true)
+  }
+
+  const handleConfirmDeleteSupplier = async () => {
+    if (deletingId !== null) {
+      await handleDeleteSupplier(deletingId)
+      setIsDeleteDialogOpen(false)
+      setDeletingId(null)
+    }
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -147,7 +150,7 @@ export default function SuppliersPage() {
             suppliers={suppliers}
             isLoading={isLoading}
             openEditDialog={openEditDialog}
-            handleDeleteSupplier={handleDeleteSupplier}
+            handleDeleteSupplier={handleAskDeleteSupplier}
           />
         </CardContent>
       </Card>
@@ -161,6 +164,15 @@ export default function SuppliersPage() {
         isLoading={isLoading}
         onSubmit={handleEditSupplier}
         resetForm={resetEditForm}
+      />
+
+      <DeleteConfirmDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+        onConfirm={handleConfirmDeleteSupplier}
+        title="¿Eliminar proveedor?"
+        description="Esta acción eliminará el proveedor permanentemente."
+        confirmText="Eliminar proveedor"
       />
     </motion.div>
   )

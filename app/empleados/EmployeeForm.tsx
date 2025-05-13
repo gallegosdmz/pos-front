@@ -11,11 +11,12 @@ interface EmployeeFormProps {
   showPasswordFields?: boolean
   setShowPasswordFields?: (show: boolean) => void
   isEdit?: boolean
+  onSubmit?: (e: React.FormEvent<HTMLFormElement>) => void
 }
 
-export function EmployeeForm({ formData, errors, updateField, showPasswordFields, setShowPasswordFields, isEdit }: EmployeeFormProps) {
+export function EmployeeForm({ formData, errors, updateField, showPasswordFields, setShowPasswordFields, isEdit, onSubmit }: EmployeeFormProps) {
   return (
-    <div className="grid gap-4 py-4">
+    <form className="grid gap-4 py-4" onSubmit={onSubmit} autoComplete="on">
       <div className="grid grid-cols-4 items-center gap-4">
         <Label htmlFor={isEdit ? "edit-name" : "name"} className="text-right">
           Nombre
@@ -44,31 +45,10 @@ export function EmployeeForm({ formData, errors, updateField, showPasswordFields
             value={formData.userName}
             onChange={(e) => updateField('userName', e.target.value)}
             placeholder="Ingrese el nombre de usuario"
+            autoComplete="username"
           />
           {errors.userName?.length > 0 && (
             <p className="text-sm text-red-500">{errors.userName.join(", ")}</p>
-          )}
-        </div>
-      </div>
-      <div className="grid grid-cols-4 items-center gap-4">
-        <Label htmlFor={isEdit ? "edit-role" : "role"} className="text-right">
-          Rol
-        </Label>
-        <div className="col-span-3">
-          <Select
-            value={formData.role}
-            onValueChange={(value) => updateField('role', value)}
-          >
-            <SelectTrigger className={errors.role?.length ? "border-red-500" : ""}>
-              <SelectValue placeholder="Seleccionar rol" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Cajero">Cajero</SelectItem>
-              <SelectItem value="Admin">Administrador</SelectItem>
-            </SelectContent>
-          </Select>
-          {errors.role?.length > 0 && (
-            <p className="text-sm text-red-500 mt-2">{errors.role.join(", ")}</p>
           )}
         </div>
       </div>
@@ -97,6 +77,7 @@ export function EmployeeForm({ formData, errors, updateField, showPasswordFields
                 <Input
                   id="edit-password"
                   type="password"
+                  autoComplete="new-password"
                   className={errors.password?.length ? "border-red-500" : ""}
                   value={formData.password}
                   onChange={(e) => updateField('password', e.target.value)}
@@ -118,6 +99,7 @@ export function EmployeeForm({ formData, errors, updateField, showPasswordFields
             <Input
               id="password"
               type="password"
+              autoComplete="new-password"
               className={errors.password?.length ? "border-red-500" : ""}
               value={formData.password}
               onChange={(e) => updateField('password', e.target.value)}
@@ -129,6 +111,6 @@ export function EmployeeForm({ formData, errors, updateField, showPasswordFields
           </div>
         </div>
       )}
-    </div>
+    </form>
   )
 } 

@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { BarChart, DollarSign, Package, ShoppingCart, Loader2 } from "lucide-react"
+import { Loader2 } from "lucide-react"
 import { motion } from "framer-motion"
 import { useQuery } from "@tanstack/react-query"
 import { SalesService } from "../ventas/service"
@@ -29,26 +29,32 @@ const formatDate = (date: string | Date) => {
   })
 }
 
+const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
+
 export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState("overview")
 
   // Fetch data
   const { data: sales = [], isLoading: isLoadingSales } = useQuery({
     queryKey: ['sales'],
-    queryFn: () => SalesService.getSales()
+    queryFn: async () => {
+      await delay(0); // No delay para la primera
+      return SalesService.getSales();
+    }
   })
-
   const { data: expenses = [], isLoading: isLoadingExpenses, error: expensesError } = useQuery({
     queryKey: ['expenses'],
     queryFn: async () => {
-      const data = await ExpenseService.getExpenses()
-      return data
+      await delay(1000); // Espera 1 segundo después de ventas
+      return ExpenseService.getExpenses();
     }
   })
-
   const { data: products = [], isLoading: isLoadingProducts } = useQuery({
     queryKey: ['products'],
-    queryFn: () => ProductService.getProducts()
+    queryFn: async () => {
+      await delay(2000); // Espera 2 segundos después de ventas
+      return ProductService.getProducts();
+    }
   })
 
   // Calcular estadísticas
@@ -91,7 +97,7 @@ export default function DashboardPage() {
     .sort((a: Product, b: Product) => (b.stock || 0) - (a.stock || 0))
     .slice(0, 5)
 
-  if (isLoadingSales || isLoadingProducts || isLoadingExpenses) {
+  if (isLoadingProducts || isLoadingSales || isLoadingExpenses) {
     return (
       <div className="flex items-center justify-center h-[50vh]">
         <Loader2 className="h-8 w-8 animate-spin" />

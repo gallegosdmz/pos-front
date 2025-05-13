@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react'
 import { Product, SaleItem } from './types'
 import { SaleService } from './service'
-import { useToast } from '@/components/ui/use-toast'
+import { useToast } from '@/hooks/use-toast'
 
 export const useSale = () => {
   const { toast } = useToast()
@@ -26,7 +26,7 @@ export const useSale = () => {
     }
   }, [toast])
 
-  const getProductByBarcode = useCallback(async (id: number) => {
+  const getProductByBarcode = useCallback(async (id: string | number) => {
     try {
       setIsLoading(true)
       const product = SaleService.findProductById(products, id)
@@ -122,7 +122,7 @@ export const useSale = () => {
     setCartItems(prev => prev.filter(item => item.product !== productId))
   }, [])
 
-  const createSale = useCallback(async () => {
+  const createSale = useCallback(async (extraData?: { [key: string]: any }) => {
     try {
       setIsLoading(true)
       const total = cartItems.reduce((sum, item) => {
@@ -151,7 +151,8 @@ export const useSale = () => {
       const saleData = {
         dateSale: new Date(),
         total: Number(total),
-        details: details
+        details: details,
+        ...(extraData || {})
       }
 
       console.log('Datos finales de venta:', {

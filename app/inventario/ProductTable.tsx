@@ -1,7 +1,7 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Edit, Trash2 } from "lucide-react"
+import { Edit, Trash2, QrCode } from "lucide-react"
 import { Product } from "./types"
 
 interface ProductTableProps {
@@ -9,9 +9,10 @@ interface ProductTableProps {
   isLoading: boolean
   openEditDialog: (product: Product) => void
   handleDeleteProduct: (id: number) => void
+  handleShowQR: (product: Product) => void
 }
 
-export function ProductTable({ products, isLoading, openEditDialog, handleDeleteProduct }: ProductTableProps) {
+export function ProductTable({ products, isLoading, openEditDialog, handleDeleteProduct, handleShowQR }: ProductTableProps) {
   return (
     <Table>
       <TableHeader>
@@ -52,11 +53,19 @@ export function ProductTable({ products, isLoading, openEditDialog, handleDelete
                   <Button 
                     variant="ghost" 
                     size="icon" 
-                    onClick={() => handleDeleteProduct(product.id)}
+                    onClick={() => handleDeleteProduct(Number(product.id))}
                     disabled={isLoading}
                   >
                     <Trash2 className="h-4 w-4" />
                     <span className="sr-only">Eliminar</span>
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleShowQR(product)}
+                  >
+                    <QrCode className="h-4 w-4" />
+                    <span className="sr-only">Ver QR</span>
                   </Button>
                 </div>
               </TableCell>

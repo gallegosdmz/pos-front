@@ -11,7 +11,7 @@ const getAuthHeaders = () => {
 
 export const CategoryService = {
   async getCategories(): Promise<Category[]> {
-    const response = await fetch(`${API_URL}/categories`, {
+    const response = await fetch(`${API_URL}/categories/find-all-by-business`, {
       headers: getAuthHeaders()
     })
     

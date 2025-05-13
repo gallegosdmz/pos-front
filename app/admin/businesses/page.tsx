@@ -14,6 +14,7 @@ import { useCeos } from '../ceos/hooks';
 import { CeoForm } from '../ceos/CeoForm';
 import { CeoTable } from '../ceos/CeoTable';
 import { CeoFormValues, Ceo } from '../ceos/types';
+import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog"
 
 export default function AdminPanelPage() {
   // Negocios
@@ -29,6 +30,12 @@ export default function AdminPanelPage() {
   const [isCeoDialogOpen, setIsCeoDialogOpen] = useState(false);
   const [isEditCeoDialogOpen, setIsEditCeoDialogOpen] = useState(false);
   const [editingCeo, setEditingCeo] = useState<Ceo | null>(null);
+
+  // Estados para diálogos de eliminación
+  const [isDeleteBusinessDialogOpen, setIsDeleteBusinessDialogOpen] = useState(false)
+  const [deletingBusinessId, setDeletingBusinessId] = useState<number | null>(null)
+  const [isDeleteCeoDialogOpen, setIsDeleteCeoDialogOpen] = useState(false)
+  const [deletingCeoId, setDeletingCeoId] = useState<number | null>(null)
 
   useEffect(() => {
     loadBusinesses();
@@ -91,6 +98,29 @@ export default function AdminPanelPage() {
     }
   };
 
+  const handleAskDeleteBusiness = (id: number) => {
+    setDeletingBusinessId(id)
+    setIsDeleteBusinessDialogOpen(true)
+  }
+  const handleConfirmDeleteBusiness = async () => {
+    if (deletingBusinessId !== null) {
+      await handleDeleteBusiness(deletingBusinessId)
+      setIsDeleteBusinessDialogOpen(false)
+      setDeletingBusinessId(null)
+    }
+  }
+  const handleAskDeleteCeo = (id: number) => {
+    setDeletingCeoId(id)
+    setIsDeleteCeoDialogOpen(true)
+  }
+  const handleConfirmDeleteCeo = async () => {
+    if (deletingCeoId !== null) {
+      await handleDeleteCeo(deletingCeoId)
+      setIsDeleteCeoDialogOpen(false)
+      setDeletingCeoId(null)
+    }
+  }
+
   return (
     <div className="max-w-5xl mx-auto py-10 px-2 md:px-0">
       <h1 className="text-3xl font-bold tracking-tight mb-2">Administración de Negocios y CEOs</h1>
@@ -115,7 +145,7 @@ export default function AdminPanelPage() {
               <CeoTable
                 ceos={ceos}
                 isLoading={isLoadingCeos}
-                onDelete={handleDeleteCeo}
+                onDelete={handleAskDeleteCeo}
                 onEdit={handleEditCeo}
                 businesses={ceoBusinesses}
               />
@@ -179,7 +209,7 @@ export default function AdminPanelPage() {
               <CardDescription>Total de negocios: {businesses.length}</CardDescription>
             </CardHeader>
             <CardContent>
-              <BusinessTable businesses={businesses} isLoading={isLoadingBusinesses} onDelete={handleDeleteBusiness} onEdit={handleEditBusiness} />
+              <BusinessTable businesses={businesses} isLoading={isLoadingBusinesses} onDelete={handleAskDeleteBusiness} onEdit={handleEditBusiness} />
             </CardContent>
           </Card>
           <Dialog open={isBusinessDialogOpen} onOpenChange={(open) => {
@@ -215,6 +245,22 @@ export default function AdminPanelPage() {
           </Dialog>
         </TabsContent>
       </Tabs>
+      <DeleteConfirmDialog
+        open={isDeleteBusinessDialogOpen}
+        onOpenChange={setIsDeleteBusinessDialogOpen}
+        onConfirm={handleConfirmDeleteBusiness}
+        title="¿Eliminar negocio?"
+        description="Esta acción eliminará el negocio permanentemente."
+        confirmText="Eliminar negocio"
+      />
+      <DeleteConfirmDialog
+        open={isDeleteCeoDialogOpen}
+        onOpenChange={setIsDeleteCeoDialogOpen}
+        onConfirm={handleConfirmDeleteCeo}
+        title="¿Eliminar CEO?"
+        description="Esta acción eliminará el CEO permanentemente."
+        confirmText="Eliminar CEO"
+      />
     </div>
   );
 } 

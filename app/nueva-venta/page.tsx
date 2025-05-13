@@ -13,13 +13,12 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Barcode, Minus, Plus, Search, ShoppingCart, Trash2 } from "lucide-react"
-import { useToast } from "@/components/ui/use-toast"
+import { useToast } from "@/hooks/use-toast"
 import { motion } from "framer-motion"
 import { IDetectedBarcode, Scanner } from "@yudiel/react-qr-scanner"
 import { useSale } from "./hooks"
@@ -96,13 +95,12 @@ export default function NewSalePage() {
   const handleQRScan = async (detectedCodes: IDetectedBarcode[]) => {
     if (detectedCodes.length === 0) return;
 
-    console.log(detectedCodes)
-  
     const id = detectedCodes[0].rawValue;
-    const product = await getProductByBarcode(Number(id));
+    console.log("QR leído:", id, typeof id);
+    console.log("Productos cargados:", products);
+    const product = await getProductByBarcode(id);
+    console.log("Producto encontrado:", product);
 
-    console.log(product);
-  
     if (product) {
       addToCart(product);
       setIsQRScannerOpen(false);
@@ -110,7 +108,7 @@ export default function NewSalePage() {
   };
 
   const handleQRError = (error: any) => {
-    console.error(error)
+    console.error("Error en QR Scanner:", error);
     toast({
       title: "Error al escanear",
       description: "No se pudo acceder a la cámara o hubo un error al escanear.",
@@ -142,7 +140,10 @@ export default function NewSalePage() {
     }
 
     try {
-      await createSale()
+      await createSale({
+        client: (customerName.trim() === "" ? "Cliente General" : customerName).slice(0, 150),
+        method: String(paymentMethod).slice(0, 150)
+      })
       setIsPaymentDialogOpen(false)
       setCashReceived(0)
       setCustomerName("")
@@ -498,10 +499,11 @@ export default function NewSalePage() {
             <DialogTitle>Escanear Código QR</DialogTitle>
             <DialogDescription>Apunta la cámara al código QR del producto para agregarlo al carrito.</DialogDescription>
           </DialogHeader>
+          <RenderScannerLog />
           <div className="flex flex-col items-center justify-center py-4">
             <div className="w-full max-w-sm overflow-hidden rounded-lg">
               <Scanner
-                onScan={handleQRScan}
+                onScan={(codes) => { console.log("onScan fired", codes); handleQRScan(codes); }}
                 onError={handleQRError}
                 scanDelay={500}
                 constraints={{
@@ -519,4 +521,9 @@ export default function NewSalePage() {
       </Dialog>
     </motion.div>
   )
+}
+
+function RenderScannerLog() {
+  console.log("Renderizando Scanner QR");
+  return null;
 }

@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react'
 import { Sale, Employee, SaleFilters, SaleDetail } from './types'
 import { SalesService } from './service'
-import { useToast } from '@/components/ui/use-toast'
+import { useToast } from '@/hooks/use-toast'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 
@@ -192,6 +192,28 @@ export const useSales = () => {
     .filter((sale) => sale.status === "completed")
     .reduce((sum, sale) => sum + sale.total, 0)
 
+  const createSale = useCallback(async (saleData: any) => {
+    try {
+      setIsLoading(true)
+      const response = await SalesService.createSale(saleData)
+      toast({
+        title: "Éxito",
+        description: "Venta registrada correctamente",
+      })
+      await loadSales() // Refresca la lista real desde el backend
+      return response
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      })
+      throw error
+    } finally {
+      setIsLoading(false)
+    }
+  }, [toast, loadSales])
+
   return {
     sales: filteredSales,
     isLoading,
@@ -203,6 +225,7 @@ export const useSales = () => {
     formatDate,
     formatCurrency,
     expandedSaleId,
-    toggleSaleDetails
+    toggleSaleDetails,
+    createSale
   }
 } 

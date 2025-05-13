@@ -11,7 +11,7 @@ const getAuthHeaders = () => {
 
 export const SaleService = {
   async getProducts(): Promise<Product[]> {
-    const response = await fetch(`${API_URL}/products`, {
+    const response = await fetch(`${API_URL}/products/find-all-by-business`, {
       headers: getAuthHeaders()
     })
     
@@ -27,8 +27,12 @@ export const SaleService = {
     return data
   },
 
-  findProductById(products: Product[], id: number): Product | null {
-    return products.find(product => product.id === id) || null
+  findProductById(products: Product[], codeOrId: string | number): Product | null {
+    return (
+      products.find(product => String(product.barCode) === String(codeOrId)) ||
+      products.find(product => Number(product.id) === Number(codeOrId)) ||
+      null
+    );
   },
 
   async createSale(saleData: CreateSaleDto): Promise<SaleResponse> {

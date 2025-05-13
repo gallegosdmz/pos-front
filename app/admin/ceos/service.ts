@@ -17,6 +17,7 @@ export const CeoService = {
       headers: getAuthHeaders(),
     });
     const data = await response.json();
+    console.log('Respuesta de /administrators:', data);
     if (!response.ok) throw new Error(data.message || 'No se pudieron cargar los CEOs.');
     return data;
   },
@@ -57,7 +58,6 @@ export const CeoService = {
       headers: getAuthHeaders(),
     });
     const data = await response.json();
-    console.log('Respuesta de /businesses:', data);
     if (!response.ok) throw new Error(data.message || 'No se pudieron cargar los negocios.');
     return data;
   },

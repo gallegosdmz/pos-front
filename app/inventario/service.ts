@@ -11,7 +11,7 @@ const getAuthHeaders = () => {
 
 export const ProductService = {
   async getProducts(): Promise<Product[]> {
-    const response = await fetch(`${API_URL}/products`, {
+    const response = await fetch(`${API_URL}/products/find-all-by-business`, {
       headers: getAuthHeaders()
     })
     

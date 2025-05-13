@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react'
 import { Employee, EmployeeFormValues } from './types'
 import { EmployeeService } from './service'
-import { useToast } from '@/components/ui/use-toast'
+import { useToast } from '@/hooks/use-toast'
 
 const validatePassword = (password: string): { isValid: boolean; errors: string[] } => {
   const errors: string[] = [];
@@ -54,11 +54,11 @@ export const useEmployees = () => {
     try {
       setIsLoading(true)
       const response = await EmployeeService.createEmployee(employeeData)
-      setEmployees(prev => [...prev, response])
       toast({
         title: "Éxito",
         description: response.message,
       })
+      await loadEmployees()
       return response
     } catch (error: any) {
       toast({
@@ -70,7 +70,7 @@ export const useEmployees = () => {
     } finally {
       setIsLoading(false)
     }
-  }, [toast])
+  }, [toast, loadEmployees])
 
   const updateEmployee = useCallback(async (id: string, employeeData: EmployeeFormValues) => {
     try {
@@ -140,8 +140,7 @@ export const useEmployeeForm = (initialData?: EmployeeFormValues) => {
     initialData || {
       name: "",
       userName: "",
-      password: "",
-      role: "Cajero"
+      password: ""
     }
   )
   const [errors, setErrors] = useState<{ [key: string]: string[] }>({})
@@ -183,13 +182,6 @@ export const useEmployeeForm = (initialData?: EmployeeFormValues) => {
           newErrors.push("El usuario solo puede contener letras, números y guiones bajos");
         }
         break;
-      case 'role':
-        if (!value) {
-          newErrors.push("El rol es requerido");
-        } else if (!['Admin', 'Cajero'].includes(value)) {
-          newErrors.push("El rol debe ser Administrador o Cajero");
-        }
-        break;
     }
 
     setErrors(prev => ({
@@ -216,8 +208,7 @@ export const useEmployeeForm = (initialData?: EmployeeFormValues) => {
     setFormData({
       name: "",
       userName: "",
-      password: "",
-      role: "Cajero"
+      password: ""
     });
     setErrors({});
     setTouched({});
@@ -226,7 +217,7 @@ export const useEmployeeForm = (initialData?: EmployeeFormValues) => {
   const isValid = () => {
     let isFormValid = true;
     const newErrors: { [key: string]: string[] } = {};
-    const fields: (keyof EmployeeFormValues)[] = ['name', 'userName', 'role'];
+    const fields: (keyof EmployeeFormValues)[] = ['name', 'userName'];
     
     // Solo validar contraseña si es un nuevo empleado o si se está cambiando la contraseña
     if (!initialData || (initialData && formData.password)) {
@@ -245,6 +236,7 @@ export const useEmployeeForm = (initialData?: EmployeeFormValues) => {
     });
 
     if (!isFormValid) {
+      console.log('DEBUG VALIDACION EMPLEADO:', { formData, errors });
       toast({
         title: "Error de validación",
         description: "Por favor, revisa los campos marcados en rojo",

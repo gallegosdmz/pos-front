@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react'
 import { Expense, ExpenseFormValues } from './types'
 import { ExpenseService } from './service'
-import { useToast } from '@/components/ui/use-toast'
+import { useToast } from '@/hooks/use-toast'
 
 export const useExpenses = () => {
   const { toast } = useToast()
@@ -29,11 +29,11 @@ export const useExpenses = () => {
     try {
       setIsLoading(true)
       const response = await ExpenseService.createExpense(expenseData)
-      setExpenses(prev => [...prev, response])
       toast({
         title: "Éxito",
         description: "Gasto registrado correctamente",
       })
+      await loadExpenses()
       return response
     } catch (error: any) {
       toast({
@@ -45,7 +45,7 @@ export const useExpenses = () => {
     } finally {
       setIsLoading(false)
     }
-  }, [toast])
+  }, [toast, loadExpenses])
 
   const updateExpense = useCallback(async (id: number, expenseData: ExpenseFormValues) => {
     try {
@@ -113,7 +113,9 @@ export const useExpenseForm = (initialData?: ExpenseFormValues) => {
   const [formData, setFormData] = useState<ExpenseFormValues>(
     initialData || {
       concept: "",
-      total: 0
+      expCategory: "",
+      method: "",
+      total: ""
     }
   )
   const [errors, setErrors] = useState<{ [key: string]: string[] }>({})
@@ -134,7 +136,7 @@ export const useExpenseForm = (initialData?: ExpenseFormValues) => {
         break;
 
       case 'total':
-        if (typeof value !== 'number' || isNaN(value) || value <= 0) {
+        if (value === '' || isNaN(Number(value)) || Number(value) <= 0) {
           newErrors.push("El total debe ser mayor a 0");
         }
         break;
@@ -149,35 +151,23 @@ export const useExpenseForm = (initialData?: ExpenseFormValues) => {
   };
 
   const updateField = (field: keyof ExpenseFormValues, value: any) => {
-    let processedValue = value;
-    if (field === 'total') {
-      if (value === '' || value === null || value === undefined) {
-        processedValue = 0;
-      } else {
-        processedValue = Number(value);
-        if (isNaN(processedValue)) {
-          processedValue = 0;
-        }
-      }
-    }
-
     setFormData(prev => ({
       ...prev,
-      [field]: processedValue
+      [field]: value
     }));
-
     setTouched(prev => ({
       ...prev,
       [field]: true
     }));
-
-    validateField(field, processedValue);
+    validateField(field, value);
   }
 
   const resetForm = () => {
     setFormData({
       concept: "",
-      total: 0
+      expCategory: "",
+      method: "",
+      total: ""
     });
     setErrors({});
     setTouched({});

@@ -149,6 +149,29 @@ export function ProductForm({ formData, errors, updateField, categories, supplie
           <p className="text-xs text-red-500 mt-1">{errors.description[0]}</p>
         )}
       </div>
+      <div className="grid grid-cols-4 items-center gap-4">
+        <Label htmlFor="method" className="text-right">Método</Label>
+        <div className="col-span-3">
+          <Input
+            id="method"
+            value={formData.method || ""}
+            onChange={e => updateField('method', e.target.value)}
+            placeholder="Método de pago"
+          />
+        </div>
+      </div>
+      <div className="grid grid-cols-4 items-center gap-4">
+        <Label htmlFor="total" className="text-right">Total</Label>
+        <div className="col-span-3">
+          <Input
+            id="total"
+            type="number"
+            value={formData.total || ""}
+            onChange={e => updateField('total', e.target.value)}
+            placeholder="Total del gasto"
+          />
+        </div>
+      </div>
     </div>
   )
 } 

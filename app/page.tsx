@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { useToast } from "@/components/ui/use-toast"
+import { useToast } from "@/hooks/use-toast"
 import { motion } from "framer-motion"
 
 export default function LoginPage() {
@@ -52,6 +52,7 @@ export default function LoginPage() {
 
       router.push("/dashboard")
     } catch (error: any) {
+      console.log('Mostrando toast de error', error)
       toast({
         title: "Error",
         description: error.message || "Ocurrió un error al iniciar sesión",
@@ -126,7 +127,7 @@ export default function LoginPage() {
         router.push("/dashboard")
       }
     } catch (error: any) {
-      console.error('Error en login:', error)
+      console.log('Mostrando toast de error', error)
       toast({
         title: "Error",
         description: error.message || "Ocurrió un error al iniciar sesión",

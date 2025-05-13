@@ -4,41 +4,17 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Calendar } from "@/components/ui/calendar"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { CalendarIcon, Download, Plus, Search, Edit, Trash2 } from "lucide-react"
-import { cn } from "@/lib/utils"
+import {  Download,  Search} from "lucide-react"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
-import { useToast } from "@/components/ui/use-toast"
+import { useToast } from "@/hooks/use-toast"
 import { motion } from "framer-motion"
 import { useExpenses, useExpenseForm } from "./hooks"
-import { Expense, ExpenseFormValues } from "./types"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
+import { Expense } from "./types"
 import { ExpenseTable } from "./ExpenseTable"
 import { AddExpenseDialog } from "./AddExpenseDialog"
 import { EditExpenseDialog } from "./EditExpenseDialog"
+import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog"
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat('es-MX', {
@@ -115,6 +91,8 @@ export default function ExpensesPage() {
   const handleEditClick = (expense: Expense) => {
     setFormData({
       concept: expense.concept,
+      expCategory: expense.expCategory || "",
+      method: expense.method || "",
       total: parseExpenseTotal(expense.total)
     })
     setIsEditMode(true)
@@ -220,20 +198,14 @@ export default function ExpensesPage() {
         </CardContent>
       </Card>
 
-      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta acción no se puede deshacer. El gasto será eliminado permanentemente.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteConfirm}>Eliminar</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <DeleteConfirmDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+        onConfirm={handleDeleteConfirm}
+        title="¿Eliminar gasto?"
+        description="Esta acción eliminará el gasto permanentemente."
+        confirmText="Eliminar gasto"
+      />
     </motion.div>
   )
 }

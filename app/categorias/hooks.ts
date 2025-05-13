@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react'
 import { Category, CategoryFormValues } from './types'
 import { CategoryService } from './service'
-import { useToast } from '@/components/ui/use-toast'
+import { useToast } from '@/hooks/use-toast'
 
 export const useCategories = () => {
   const { toast } = useToast()
@@ -34,6 +34,7 @@ export const useCategories = () => {
         description: response.message || "La categoría fue creada correctamente.",
         variant: "default",
       })
+      await loadCategories()
       return response
     } catch (error: any) {
       toast({
@@ -45,7 +46,7 @@ export const useCategories = () => {
     } finally {
       setIsLoading(false)
     }
-  }, [toast])
+  }, [toast, loadCategories])
 
   const updateCategory = useCallback(async (id: string, categoryData: CategoryFormValues) => {
     try {
@@ -78,6 +79,7 @@ export const useCategories = () => {
         description: response.message || "La categoría fue eliminada correctamente.",
         variant: "default",
       })
+      await loadCategories()
       return response
     } catch (error: any) {
       toast({
@@ -89,7 +91,7 @@ export const useCategories = () => {
     } finally {
       setIsLoading(false)
     }
-  }, [toast])
+  }, [toast, loadCategories])
 
   const filteredCategories = categories.filter(
     (category) =>

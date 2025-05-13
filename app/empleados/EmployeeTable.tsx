@@ -1,7 +1,7 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Edit, Trash2 } from "lucide-react"
+import { Edit, Trash2, Key } from "lucide-react"
 import { Employee } from "./types"
 
 interface EmployeeTableProps {
@@ -9,9 +9,10 @@ interface EmployeeTableProps {
   isLoading: boolean
   openEditDialog: (employee: Employee) => void
   handleDeleteEmployee: (id: string) => void
+  handleChangePassword: (employee: Employee) => void
 }
 
-export function EmployeeTable({ employees, isLoading, openEditDialog, handleDeleteEmployee }: EmployeeTableProps) {
+export function EmployeeTable({ employees, isLoading, openEditDialog, handleDeleteEmployee, handleChangePassword }: EmployeeTableProps) {
   return (
     <Table>
       <TableHeader>
@@ -55,6 +56,14 @@ export function EmployeeTable({ employees, isLoading, openEditDialog, handleDele
                   >
                     <Trash2 className="h-4 w-4" />
                     <span className="sr-only">Eliminar</span>
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleChangePassword(employee)}
+                  >
+                    <Key className="h-4 w-4" />
+                    <span className="sr-only">Cambiar contraseña</span>
                   </Button>
                 </div>
               </TableCell>

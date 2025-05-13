@@ -17,6 +17,8 @@ export function ExpenseTable({ expenses, isLoading, formatCurrency, parseExpense
       <TableHeader>
         <TableRow>
           <TableHead>Concepto</TableHead>
+          <TableHead>Categoría de gasto</TableHead>
+          <TableHead>Método de pago</TableHead>
           <TableHead>Total</TableHead>
           <TableHead className="w-[100px]">Acciones</TableHead>
         </TableRow>
@@ -24,13 +26,13 @@ export function ExpenseTable({ expenses, isLoading, formatCurrency, parseExpense
       <TableBody>
         {isLoading ? (
           <TableRow>
-            <TableCell colSpan={3} className="text-center">
+            <TableCell colSpan={5} className="text-center">
               Cargando gastos...
             </TableCell>
           </TableRow>
         ) : expenses.length === 0 ? (
           <TableRow>
-            <TableCell colSpan={3} className="text-center">
+            <TableCell colSpan={5} className="text-center">
               No se encontraron gastos
             </TableCell>
           </TableRow>
@@ -38,6 +40,8 @@ export function ExpenseTable({ expenses, isLoading, formatCurrency, parseExpense
           expenses.map((expense) => (
             <TableRow key={expense.id}>
               <TableCell className="font-medium">{expense.concept}</TableCell>
+              <TableCell>{expense.expCategory}</TableCell>
+              <TableCell>{expense.method}</TableCell>
               <TableCell>{formatCurrency(parseExpenseTotal(expense.total))}</TableCell>
               <TableCell>
                 <div className="flex space-x-2">

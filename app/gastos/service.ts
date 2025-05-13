@@ -11,7 +11,7 @@ const getAuthHeaders = () => {
 
 export const ExpenseService = {
   async getExpenses(): Promise<Expense[]> {
-    const response = await fetch(`${API_URL}/expenses`, {
+    const response = await fetch(`${API_URL}/expenses/find-all-by-business`, {
       headers: getAuthHeaders()
     })
     

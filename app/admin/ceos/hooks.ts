@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { Ceo, CeoFormValues } from './types';
 import { CeoService } from './service';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import { Business } from '../businesses/types';
 
 export const useCeos = () => {

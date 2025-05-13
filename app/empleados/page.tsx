@@ -1,34 +1,20 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Badge } from "@/components/ui/badge"
-import { Edit, Search, Trash2, UserPlus } from "lucide-react"
+import { Search} from "lucide-react"
 import { motion } from "framer-motion"
 import { Employee } from "./types"
 import { useEmployees, useEmployeeForm } from "./hooks"
 import { EmployeeTable } from "./EmployeeTable"
 import { AddEmployeeDialog } from "./AddEmployeeDialog"
 import { EditEmployeeDialog } from "./EditEmployeeDialog"
-
-const ROLES = {
-  Admin: 'Administrador',
-  Cajero: 'Cajero'
-} as const
+import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog"
+import { useToast } from '@/hooks/use-toast'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+import { EmployeeService } from "./service"
 
 export default function EmployeesPage() {
   const {
@@ -62,6 +48,14 @@ export default function EmployeesPage() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [currentEmployeeId, setCurrentEmployeeId] = useState<string | null>(null)
   const [showPasswordFields, setShowPasswordFields] = useState(false)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false)
+  const [passwordEmployee, setPasswordEmployee] = useState<Employee | null>(null)
+  const [newPassword, setNewPassword] = useState("")
+  const [isChangingPassword, setIsChangingPassword] = useState(false)
+
+  const { toast } = useToast()
 
   useEffect(() => {
     loadEmployees()
@@ -75,7 +69,6 @@ export default function EmployeesPage() {
       setIsAddDialogOpen(false)
       resetNewEmployeeForm()
     } catch {
-      // Error ya manejado por el hook
     }
   }
 
@@ -83,13 +76,13 @@ export default function EmployeesPage() {
     if (!isEditEmployeeValid()) return;
 
     try {
-      await updateEmployee(currentEmployeeId!, editEmployee)
+      const original = employees.find(emp => emp.id === currentEmployeeId)
+      await updateEmployee(currentEmployeeId!, { ...editEmployee, role: original?.role })
       setIsEditDialogOpen(false)
       setCurrentEmployeeId(null)
       resetEditForm()
       setShowPasswordFields(false)
     } catch {
-      // Error ya manejado por el hook
     }
   }
 
@@ -97,7 +90,6 @@ export default function EmployeesPage() {
     try {
       await deleteEmployee(id)
     } catch {
-      // Error ya manejado por el hook
     }
   }
 
@@ -105,9 +97,50 @@ export default function EmployeesPage() {
     setCurrentEmployeeId(employee.id)
     updateEditEmployee('name', employee.name)
     updateEditEmployee('userName', employee.userName)
-    updateEditEmployee('role', employee.role)
     setShowPasswordFields(false)
     setIsEditDialogOpen(true)
+  }
+
+  const handleAskDeleteEmployee = (id: string) => {
+    setDeletingId(id)
+    setIsDeleteDialogOpen(true)
+  }
+
+  const handleConfirmDeleteEmployee = async () => {
+    if (deletingId) {
+      await handleDeleteEmployee(deletingId)
+      setIsDeleteDialogOpen(false)
+      setDeletingId(null)
+    }
+  }
+
+  const handleChangePassword = (employee: Employee) => {
+    setPasswordEmployee(employee)
+    setIsPasswordDialogOpen(true)
+    setNewPassword("")
+  }
+
+  const handleConfirmChangePassword = async () => {
+    if (!passwordEmployee || !newPassword) return
+    setIsChangingPassword(true)
+    try {
+      await EmployeeService.changeEmployeePassword(passwordEmployee.id, newPassword)
+      toast({
+        title: "Contraseña actualizada",
+        description: `La contraseña de ${passwordEmployee.name} fue cambiada exitosamente.`,
+      })
+      setIsPasswordDialogOpen(false)
+      setPasswordEmployee(null)
+      setNewPassword("")
+    } catch (error: any) {
+      toast({
+        title: "Error al cambiar contraseña",
+        description: error.message || "Ocurrió un error al cambiar la contraseña.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsChangingPassword(false)
+    }
   }
 
   return (
@@ -156,7 +189,8 @@ export default function EmployeesPage() {
             employees={employees}
             isLoading={isLoading}
             openEditDialog={openEditDialog}
-            handleDeleteEmployee={handleDeleteEmployee}
+            handleDeleteEmployee={handleAskDeleteEmployee}
+            handleChangePassword={handleChangePassword}
           />
         </CardContent>
       </Card>
@@ -174,6 +208,44 @@ export default function EmployeesPage() {
         showPasswordFields={showPasswordFields}
         setShowPasswordFields={setShowPasswordFields}
       />
+
+      <DeleteConfirmDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+        onConfirm={handleConfirmDeleteEmployee}
+        title="¿Eliminar empleado?"
+        description="Esta acción eliminará el empleado permanentemente."
+        confirmText="Eliminar empleado"
+      />
+
+      <Dialog open={isPasswordDialogOpen} onOpenChange={setIsPasswordDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cambiar contraseña</DialogTitle>
+            <DialogDescription>
+              Ingresa una nueva contraseña segura para este empleado. Debe contener mayúsculas, minúsculas y un número.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={e => { e.preventDefault(); handleConfirmChangePassword(); }}>
+            <div className="space-y-4">
+              <p>Empleado: <b>{passwordEmployee?.name}</b></p>
+              <Input
+                type="password"
+                placeholder="Nueva contraseña"
+                value={newPassword}
+                onChange={e => setNewPassword(e.target.value)}
+                autoFocus
+              />
+            </div>
+            <DialogFooter>
+              <Button variant="outline" type="button" onClick={() => setIsPasswordDialogOpen(false)} disabled={isChangingPassword}>Cancelar</Button>
+              <Button type="submit" disabled={isChangingPassword || !newPassword}>
+                {isChangingPassword ? "Cambiando..." : "Cambiar contraseña"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </motion.div>
   )
 }

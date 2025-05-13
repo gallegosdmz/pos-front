@@ -56,7 +56,7 @@ const getAuthHeaders = () => {
 export const SalesService = {
   async getSales(): Promise<Sale[]> {
     try {
-      const response = await fetch(`${API_URL}/sales`, {
+      const response = await fetch(`${API_URL}/sales/find-all-by-business`, {
         headers: getAuthHeaders()
       })
       
@@ -141,5 +141,18 @@ export const SalesService = {
       console.error('Error al obtener empleados:', error)
       throw error
     }
+  },
+
+  async createSale(saleData: any): Promise<any> {
+    const response = await fetch(`${API_URL}/sales`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(saleData),
+    })
+    const data = await response.json()
+    if (!response.ok) {
+      throw new Error(data.message || 'No se pudo crear la venta')
+    }
+    return data
   }
 } 

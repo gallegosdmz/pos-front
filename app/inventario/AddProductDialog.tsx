@@ -27,7 +27,7 @@ export function AddProductDialog({ open, setOpen, formData, errors, updateField,
           Agregar Producto
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Agregar Nuevo Producto</DialogTitle>
           <DialogDescription>Ingresa la información del nuevo producto.</DialogDescription>

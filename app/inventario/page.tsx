@@ -4,7 +4,6 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import {
   Dialog,
   DialogContent,
@@ -12,21 +11,16 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Badge } from "@/components/ui/badge"
-import { Edit, Plus, Search, Trash2 } from "lucide-react"
+import { Search } from "lucide-react"
 import { motion } from "framer-motion"
 import { QRCodeCanvas } from "qrcode.react"
 import { useProducts, useProductForm } from "./hooks"
 import { Product } from "./types"
 import { useCategories, useCategoryForm } from "@/app/categorias/hooks"
-import { Category, CategoryFormValues } from "@/app/categorias/types"
-import { formatCurrency, getCategoryName, generateId } from "@/lib/data"
-import { toast } from "@/components/ui/use-toast"
+import { Category} from "@/app/categorias/types"
+import { toast } from "@/hooks/use-toast"
 import { useSuppliers } from "@/app/proveedores/hooks"
 import { ProductTable } from "./ProductTable"
 import { AddProductDialog } from "./AddProductDialog"
@@ -34,6 +28,7 @@ import { EditProductDialog } from "./EditProductDialog"
 import { CategoryTable } from "@/app/categorias/CategoryTable"
 import { AddCategoryDialog } from "@/app/categorias/AddCategoryDialog"
 import { EditCategoryDialog } from "@/app/categorias/EditCategoryDialog"
+import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog"
 
 // Mantenemos las categorías de ejemplo por ahora
 
@@ -107,6 +102,12 @@ export default function InventoryPage() {
   const [currentCategory, setCurrentCategory] = useState<string | null>(null)
   const [isQRDialogOpen, setIsQRDialogOpen] = useState(false)
   const [currentQRProduct, setCurrentQRProduct] = useState<Product | null>(null)
+
+  // Estados para diálogos de eliminación
+  const [isDeleteProductDialogOpen, setIsDeleteProductDialogOpen] = useState(false)
+  const [deletingProductId, setDeletingProductId] = useState<number | null>(null)
+  const [isDeleteCategoryDialogOpen, setIsDeleteCategoryDialogOpen] = useState(false)
+  const [deletingCategoryId, setDeletingCategoryId] = useState<number | null>(null)
 
   // Cargar productos y categorías al montar el componente
   useEffect(() => {
@@ -277,6 +278,30 @@ export default function InventoryPage() {
     updateNewProduct('supplier', categoryId);
   };
 
+  const handleAskDeleteProduct = (id: number) => {
+    setDeletingProductId(id)
+    setIsDeleteProductDialogOpen(true)
+  }
+  const handleConfirmDeleteProduct = async () => {
+    if (deletingProductId !== null) {
+      await handleDeleteProduct(deletingProductId)
+      setIsDeleteProductDialogOpen(false)
+      setDeletingProductId(null)
+    }
+  }
+
+  const handleAskDeleteCategory = (id: number) => {
+    setDeletingCategoryId(id)
+    setIsDeleteCategoryDialogOpen(true)
+  }
+  const handleConfirmDeleteCategory = async () => {
+    if (deletingCategoryId !== null) {
+      await handleDeleteCategory(String(deletingCategoryId))
+      setIsDeleteCategoryDialogOpen(false)
+      setDeletingCategoryId(null)
+    }
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -332,7 +357,8 @@ export default function InventoryPage() {
                 products={products}
                 isLoading={isLoadingProducts}
                 openEditDialog={openEditDialog}
-                handleDeleteProduct={handleDeleteProduct}
+                handleDeleteProduct={handleAskDeleteProduct}
+                handleShowQR={openQRDialog}
               />
             </CardContent>
           </Card>
@@ -347,6 +373,14 @@ export default function InventoryPage() {
             isLoading={isLoadingProducts}
             onSubmit={handleEditProduct}
             resetForm={resetEditProductForm}
+          />
+          <DeleteConfirmDialog
+            open={isDeleteProductDialogOpen}
+            onOpenChange={setIsDeleteProductDialogOpen}
+            onConfirm={handleConfirmDeleteProduct}
+            title="¿Eliminar producto?"
+            description="Esta acción eliminará el producto permanentemente."
+            confirmText="Eliminar producto"
           />
         </TabsContent>
         <TabsContent value="categories" className="space-y-4">
@@ -372,7 +406,7 @@ export default function InventoryPage() {
                 categories={categories}
                 isLoading={isLoadingCategories}
                 openEditDialog={openEditCategoryDialog}
-                handleDeleteCategory={(id) => handleDeleteCategory(String(id))}
+                handleDeleteCategory={handleAskDeleteCategory}
               />
             </CardContent>
           </Card>
@@ -386,6 +420,14 @@ export default function InventoryPage() {
             onSubmit={handleEditCategory}
             resetForm={resetEditCategoryForm}
           />
+          <DeleteConfirmDialog
+            open={isDeleteCategoryDialogOpen}
+            onOpenChange={setIsDeleteCategoryDialogOpen}
+            onConfirm={handleConfirmDeleteCategory}
+            title="¿Eliminar categoría?"
+            description="Esta acción eliminará la categoría permanentemente."
+            confirmText="Eliminar categoría"
+          />
         </TabsContent>
       </Tabs>
 
@@ -393,31 +435,22 @@ export default function InventoryPage() {
       <Dialog open={isQRDialogOpen} onOpenChange={setIsQRDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Código QR del Producto</DialogTitle>
+            <DialogTitle>QR del producto</DialogTitle>
             <DialogDescription>
-              {currentQRProduct ? `Código QR para ${currentQRProduct.name} (ID: ${currentQRProduct.id})` : ""}
+              Escanea este código QR para ver el producto.
             </DialogDescription>
           </DialogHeader>
-          <div className="flex flex-col items-center justify-center py-4">
-            {currentQRProduct && (
-              <div className="p-4 bg-white rounded-lg">
-                <QRCodeCanvas
-                  id="product-qr"
-                  value={String(currentQRProduct.id)}
-                  size={200}
-                  level="H"
-                  includeMargin={true}
-                />
+          {currentQRProduct && (
+            <div className="flex flex-col items-center justify-center py-4">
+              <QRCodeCanvas id="product-qr" value={currentQRProduct.barCode} size={200} includeMargin={true} level="H" />
+              <div className="mt-4 text-center">
+                <div className="font-bold">{currentQRProduct.name}</div>
+                <div className="text-sm text-muted-foreground">{currentQRProduct.barCode}</div>
               </div>
-            )}
-            <p className="text-sm text-muted-foreground mt-4">
-              Este código QR contiene el ID del producto y puede ser escaneado en el módulo de ventas.
-            </p>
-          </div>
+            </div>
+          )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsQRDialogOpen(false)}>
-              Cerrar
-            </Button>
+            <Button variant="outline" onClick={() => setIsQRDialogOpen(false)}>Cerrar</Button>
             <Button onClick={handleDownloadQR}>Descargar QR</Button>
           </DialogFooter>
         </DialogContent>
