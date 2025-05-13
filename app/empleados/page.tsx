@@ -77,7 +77,8 @@ export default function EmployeesPage() {
 
     try {
       const original = employees.find(emp => emp.id === currentEmployeeId)
-      await updateEmployee(currentEmployeeId!, { ...editEmployee, role: original?.role })
+      const dataToSend = { ...editEmployee, role: original?.role, password: original?.password };
+      await updateEmployee(currentEmployeeId!, dataToSend)
       setIsEditDialogOpen(false)
       setCurrentEmployeeId(null)
       resetEditForm()

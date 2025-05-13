@@ -4,6 +4,7 @@ export interface Ceo {
   userName: string;
   businessId: number;
   business?: { id: number; name: string };
+  role?: string;
 }
 
 export interface CeoFormValues {

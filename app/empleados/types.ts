@@ -4,12 +4,13 @@ export interface Employee {
   userName: string;
   role: string;
   isDeleted: boolean;
+  password?: string;
 }
 
 export interface EmployeeFormValues {
   name: string;
   userName: string;
-  password: string;
+  password?: string;
   role?: string;
 }
 

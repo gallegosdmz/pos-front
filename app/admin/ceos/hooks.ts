@@ -110,7 +110,7 @@ export const useCeos = () => {
   }, [toast, loadCeos]);
 
   return {
-    ceos,
+    ceos: ceos.filter(ceo => ceo.role === 'ceo'),
     businesses,
     isLoading,
     loadCeos,

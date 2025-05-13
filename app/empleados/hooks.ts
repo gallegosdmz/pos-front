@@ -3,31 +3,6 @@ import { Employee, EmployeeFormValues } from './types'
 import { EmployeeService } from './service'
 import { useToast } from '@/hooks/use-toast'
 
-const validatePassword = (password: string): { isValid: boolean; errors: string[] } => {
-  const errors: string[] = [];
-  
-  if (password.length < 8) {
-    errors.push("La contraseña debe tener al menos 8 caracteres");
-  }
-  
-  if (!/[A-Z]/.test(password)) {
-    errors.push("Debe contener al menos una letra mayúscula");
-  }
-  
-  if (!/[a-z]/.test(password)) {
-    errors.push("Debe contener al menos una letra minúscula");
-  }
-  
-  if (!/\d/.test(password)) {
-    errors.push("Debe contener al menos un número");
-  }
-
-  return {
-    isValid: errors.length === 0,
-    errors
-  };
-};
-
 export const useEmployees = () => {
   const { toast } = useToast()
   const [employees, setEmployees] = useState<Employee[]>([])
@@ -140,7 +115,6 @@ export const useEmployeeForm = (initialData?: EmployeeFormValues) => {
     initialData || {
       name: "",
       userName: "",
-      password: ""
     }
   )
   const [errors, setErrors] = useState<{ [key: string]: string[] }>({})
@@ -150,16 +124,6 @@ export const useEmployeeForm = (initialData?: EmployeeFormValues) => {
     const newErrors: string[] = [];
 
     switch (field) {
-      case 'password':
-        if (!value && !initialData) {
-          newErrors.push("La contraseña es requerida");
-        } else if (value) {
-          const { isValid, errors } = validatePassword(value);
-          if (!isValid) {
-            newErrors.push(...errors);
-          }
-        }
-        break;
       case 'name':
         if (!value.trim()) {
           newErrors.push("El nombre es requerido");
@@ -208,7 +172,7 @@ export const useEmployeeForm = (initialData?: EmployeeFormValues) => {
     setFormData({
       name: "",
       userName: "",
-      password: ""
+      ...(initialData ? {} : { password: "" })
     });
     setErrors({});
     setTouched({});

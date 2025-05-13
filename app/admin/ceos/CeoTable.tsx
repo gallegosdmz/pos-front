@@ -42,7 +42,7 @@ export function CeoTable({ ceos, isLoading, onDelete, onEdit, businesses = [] }:
               <TableCell>{ceo.id}</TableCell>
               <TableCell>{ceo.name}</TableCell>
               <TableCell>{ceo.userName}</TableCell>
-              <TableCell>{getBusinessName(Number(ceo.businessId))}</TableCell>
+              <TableCell>{ceo.business ? ceo.business.name : getBusinessName(Number(ceo.businessId))}</TableCell>
               <TableCell>
                 <div className="flex gap-2">
                   <Button variant="ghost" size="icon" onClick={() => { console.log('Click editar en tabla:', ceo); onEdit?.(ceo); }}>

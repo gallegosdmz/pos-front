@@ -1,7 +1,5 @@
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Button } from "@/components/ui/button"
 import { EmployeeFormValues } from "./types"
 
 interface EmployeeFormProps {
@@ -53,43 +51,7 @@ export function EmployeeForm({ formData, errors, updateField, showPasswordFields
         </div>
       </div>
       {isEdit ? (
-        <>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label className="text-right">
-              Contraseña
-            </Label>
-            <div className="col-span-3">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setShowPasswordFields && setShowPasswordFields(!showPasswordFields)}
-              >
-                {showPasswordFields ? "Cancelar cambio de contraseña" : "Cambiar contraseña"}
-              </Button>
-            </div>
-          </div>
-          {showPasswordFields && (
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="edit-password" className="text-right">
-                Nueva Contraseña
-              </Label>
-              <div className="col-span-3 space-y-2">
-                <Input
-                  id="edit-password"
-                  type="password"
-                  autoComplete="new-password"
-                  className={errors.password?.length ? "border-red-500" : ""}
-                  value={formData.password}
-                  onChange={(e) => updateField('password', e.target.value)}
-                  placeholder="Ingrese la nueva contraseña"
-                />
-                {errors.password?.length > 0 && (
-                  <p className="text-sm text-red-500">{errors.password.join(", ")}</p>
-                )}
-              </div>
-            </div>
-          )}
-        </>
+        <></>
       ) : (
         <div className="grid grid-cols-4 items-center gap-4">
           <Label htmlFor="password" className="text-right">
