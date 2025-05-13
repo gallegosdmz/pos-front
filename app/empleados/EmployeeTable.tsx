@@ -48,15 +48,19 @@ export function EmployeeTable({ employees, isLoading, openEditDialog, handleDele
                     <Edit className="h-4 w-4" />
                     <span className="sr-only">Editar</span>
                   </Button>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    onClick={() => handleDeleteEmployee(employee.id)}
-                    disabled={isLoading}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    <span className="sr-only">Eliminar</span>
-                  </Button>
+                  {employee.id.toString() === localStorage.getItem('id') ? (
+                    <></>
+                  ) : (
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      onClick={() => handleDeleteEmployee(employee.id)}
+                      disabled={isLoading}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      <span className="sr-only">Eliminar</span>
+                    </Button>
+                  )}
                   <Button
                     variant="ghost"
                     size="icon"

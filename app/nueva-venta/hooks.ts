@@ -147,10 +147,12 @@ export const useSale = () => {
           unitPrice: unitPrice
         }
       })
+      
+      const iva = total * 0.16;
 
       const saleData = {
         dateSale: new Date(),
-        total: Number(total),
+        total: Number(total + iva),
         details: details,
         ...(extraData || {})
       }

@@ -46,10 +46,18 @@ export function SaleDetailsDialog({ open, onOpenChange, selectedSaleId, isLoadin
                 ))}
                 <TableRow>
                   <TableCell colSpan={3} className="text-right font-medium">
+                    IVA:
+                  </TableCell>
+                  <TableCell className="font-medium">
+                    {formatCurrency(saleDetails.reduce((sum, detail) => sum + (detail.quantity * detail.unitPrice) * 0.16, 0))}
+                  </TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell colSpan={3} className="text-right font-medium">
                     Total:
                   </TableCell>
                   <TableCell className="font-medium">
-                    {formatCurrency(saleDetails.reduce((sum, detail) => sum + (detail.quantity * detail.unitPrice), 0))}
+                    {formatCurrency(saleDetails.reduce((sum, detail) => sum + (detail.quantity * detail.unitPrice) + (detail.quantity * detail.unitPrice) * 0.16, 0))}
                   </TableCell>
                 </TableRow>
               </TableBody>

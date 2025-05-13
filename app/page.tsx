@@ -113,8 +113,9 @@ export default function LoginPage() {
       }
 
       const data = await response.json()
-      console.log('Response completo del login:', data)
+      
       localStorage.setItem("token", data.token)
+      localStorage.setItem("id", data.id);
       
       toast({
         title: "Inicio de sesión exitoso",
@@ -173,6 +174,7 @@ export default function LoginPage() {
                 <Input
                   id="password"
                   type="password"
+                  placeholder="Ingresa tu contraseña"
                   value={formData.password}
                   onChange={(e) =>
                     setFormData({ ...formData, password: e.target.value })

@@ -237,7 +237,7 @@ export default function EmployeesPage() {
                 autoFocus
               />
             </div>
-            <DialogFooter>
+            <DialogFooter className="mt-4">
               <Button variant="outline" type="button" onClick={() => setIsPasswordDialogOpen(false)} disabled={isChangingPassword}>Cancelar</Button>
               <Button type="submit" disabled={isChangingPassword || !newPassword}>
                 {isChangingPassword ? "Cambiando..." : "Cambiar contraseña"}
